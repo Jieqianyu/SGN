@@ -51,7 +51,6 @@ class SGNHeadCross(nn.Module):
         
         self.positional_encoding = build_positional_encoding(positional_encoding)
         self.cross_transformer = build_transformer(cross_transformer)
-        self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
 
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
         self.mlp_prior = nn.Sequential(
@@ -103,9 +102,7 @@ class SGNHeadCross(nn.Module):
             img_metas=img_metas,
             prev_bev=None,
         )
-
-        bs, _, c = x3d.shape
-        x3d = self.bottleneck(x3d.reshape(bs, self.bev_h, self.bev_w, self.bev_z, c).permute(0, 4, 1, 2, 3)).reshape(bs, c, -1)
+        x3d = x3d.permute(0, 2, 1)
 
         # Load proposals
         proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)

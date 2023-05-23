@@ -20,6 +20,8 @@ from mmdet.datasets import DATASETS
 from mmcv.parallel import DataContainer as DC
 from projects.mmdet3d_plugin.sgn.utils.ssc_metric import SSCMetrics
 from numba import njit, prange
+import skimage
+import skimage.io
 
 @DATASETS.register_module()
 class SemanticKittiDatasetStage2(Dataset):
@@ -29,6 +31,7 @@ class SemanticKittiDatasetStage2(Dataset):
         test_mode,
         data_root,
         preprocess_root,
+        img_size=[370, 1220],
         temporal = [],
         eval_range = 51.2,
         depthmodel="msnet3d",
@@ -64,8 +67,8 @@ class SemanticKittiDatasetStage2(Dataset):
         self.voxel_size = 0.2  # 0.2m
         self.scale = scale
 
-        self.img_W = 1220
-        self.img_H = 370
+        self.img_W = img_size[1]
+        self.img_H = img_size[0]
 
         self.poses=self.load_poses()
         self.target_frames = temporal
@@ -415,17 +418,35 @@ class SemanticKittiDatasetStage2(Dataset):
         proposal_bin = self.read_occupancy_SemKITTI(proposal_path)
 
         # load ground truth
-        target_1_2_path = os.path.join(self.label_root, sequence, frame_id + "_1_2.npy")
-        target_1_2 = np.load(target_1_2_path)
-        target_1_2 = target_1_2.reshape(-1)
-        target_1_2 = target_1_2.reshape(128, 128, 16)
-        target_1_2 = target_1_2.astype(np.float32)
+        if self.split == "train":
+            target_1_2_path = os.path.join(self.label_root, sequence, frame_id + "_1_2.npy")
+            target_1_2 = np.load(target_1_2_path)
+            target_1_2 = target_1_2.reshape(-1)
+            target_1_2 = target_1_2.reshape(128, 128, 16)
+            target_1_2 = target_1_2.astype(np.float32)
+
+            depths = []
+            for i in [0]+self.target_frames:
+                id = int(frame_id)
+
+                if id + i < 0 or id + i > seq_len-1:
+                    target_id = frame_id
+                else:
+                    target_id = str(id + i).zfill(6)
+                depth_path = os.path.join(self.data_root, "dataset", "sequences_stereo_depth", sequence, "depth", target_id + ".png")
+                depth = skimage.io.imread(depth_path).astype("float32")
+                depth[depth > 0] = depth[depth > 0] / 256
+                depths.append(depth[: self.img_H, : self.img_W])
+        else:
+            target_1_2 = None
+            depths = None
 
         meta_dict = dict(
             sequence_id = sequence,
             frame_id = frame_id,
             proposal=proposal_bin,
             target_1_2=target_1_2,
+            depth=depths,
             projected_pix=projected_pixs,
             fov_mask=fov_masks, 
             img_filename=image_paths,

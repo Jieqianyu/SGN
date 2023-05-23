@@ -51,13 +51,13 @@ class FLoSP(nn.Module):
             if x3d is None:
                 x3d = self.project(
                     x_scale_2d,
-                    projected_pix // scale_2d,
+                    torch.ceil(projected_pix / scale_2d).long(),
                     fov_mask,
                 )
             else:
                 x3d += self.project(
                     x_scale_2d,
-                    projected_pix // scale_2d,
+                    torch.ceil(projected_pix / scale_2d).long(),
                     fov_mask,
                 )
 

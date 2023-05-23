@@ -145,7 +145,7 @@ class MPACv2(nn.Module):
 
 
 class SDB(nn.Module):
-    def __init__(self, channel, out_channel, depth=2, version='v1'):
+    def __init__(self, channel, out_channel, depth=3, version='v1'):
         super().__init__()
 
         c = out_channel

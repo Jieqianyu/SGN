@@ -15,16 +15,15 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models import HEADS
+from mmdet.models import HEADS, builder
 from projects.mmdet3d_plugin.sgn.utils.header import Header, SparseHeader
 from projects.mmdet3d_plugin.sgn.modules.sgb import SGB
 from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
-from projects.mmdet3d_plugin.sgn.modules.flosp import FLoSP
 from projects.mmdet3d_plugin.sgn.utils.lovasz_losses import lovasz_softmax
 from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss
 
 @HEADS.register_module()
-class SGNHead(nn.Module):
+class SGNHeadLSS(nn.Module):
     def __init__(
         self,
         *args,
@@ -32,7 +31,7 @@ class SGNHead(nn.Module):
         bev_w,
         bev_z,
         embed_dims,
-        scale_2d_list,
+        lss_neck,
         CE_ssc_loss=True,
         geo_scal_loss=True,
         sem_scal_loss=True,
@@ -48,8 +47,7 @@ class SGNHead(nn.Module):
         self.n_classes = 20
         self.embed_dims = embed_dims
 
-        self.flosp = FLoSP(scale_2d_list)
-        self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
+        self.lss = builder.build_neck(lss_neck)
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
         self.mlp_prior = nn.Sequential(
             nn.Linear(self.embed_dims, self.embed_dims//2),
@@ -70,6 +68,26 @@ class SGNHead(nn.Module):
         self.sem_scal_loss = sem_scal_loss
         self.geo_scal_loss = geo_scal_loss
         self.save_flag = save_flag
+    
+    def gen_3d_feat(self, x, img_metas):
+        lidar2cam, intrins = [], []
+        for img_meta in img_metas:
+            lidar2cam.append(img_meta['lidar2cam'])
+            intrins.append(img_meta['cam_intrinsic'])
+        lidar2cam = np.asarray(lidar2cam)
+        intrins = np.asarray(intrins)
+        lidar2cam = x.new_tensor(lidar2cam)  # (B, N, 4, 4)
+        intrins = x.new_tensor(intrins)  # (B, N, 3, 3)
+        rots, trans = lidar2cam[:, :, :3, :3], lidar2cam[:, :, :3, 3]
+        B, N = rots.shape[:2]
+        post_rots, post_trans, bda = x.new_tensor(np.eye(3)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1), \
+            torch.zeros_like(trans), x.new_tensor(np.eye(4)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1)
+        mlp_input = self.lss.get_mlp_input(rots, trans, intrins, post_rots, post_trans, bda)
+        geo_inputs = [rots, trans, intrins, post_rots, post_trans, bda, mlp_input]
+        
+        x, depth = self.lss([x] + geo_inputs)
+        
+        return x, depth
         
     def forward(self, mlvl_feats, img_metas, target):
         """Forward function.
@@ -82,9 +100,7 @@ class SGNHead(nn.Module):
         Returns:
             ssc_logit (Tensor): Outputs from the segmentation head.
         """
-        x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
-        bs, c, _ = x3d.shape
-        x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z)).reshape(bs, c, -1)
+        x3d, depth = self.gen_3d_feat(mlvl_feats[0], img_metas) # bs, c, H, W, D
 
         # Load proposals
         proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)
@@ -93,6 +109,7 @@ class SGNHead(nn.Module):
         vox_coords = self.get_voxel_indices()
 
         # Compute seed features
+        x3d = x3d.flatten(-3)
         seed_feats = x3d[0, :, vox_coords[unmasked_idx[0], 3]].permute(1, 0)
         seed_coords = vox_coords[unmasked_idx[0], :3]
         coords_torch = torch.from_numpy(np.concatenate(
@@ -112,6 +129,7 @@ class SGNHead(nn.Module):
         out = self.ssc_header(vox_feats_diff)
         out["sem_logit"] = aux_out
         out["coords"] = seed_coords
+        out["depth"] = depth
 
         return out 
 
@@ -152,6 +170,14 @@ class SGNHead(nn.Module):
             loss_sem = lovasz_softmax(F.softmax(sem_pred_2, dim=1), sp_target_2, ignore=255)
             loss_sem += F.cross_entropy(sem_pred_2, sp_target_2.long(), ignore_index=255)
             loss_dict['loss_sem'] = loss_sem
+
+            depths = []
+            for img_meta in img_metas:
+                depths.append(img_meta['depth'])
+            depths = np.asarray(depths)
+            depths = out_dict["depth"].new_tensor(depths)
+            loss_depth = self.lss.get_depth_loss(depths, out_dict["depth"])
+            loss_dict['loss_depth'] = loss_depth
 
             return loss_dict
 
