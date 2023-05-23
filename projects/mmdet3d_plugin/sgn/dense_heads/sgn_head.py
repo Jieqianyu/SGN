@@ -127,13 +127,13 @@ class SGNHead(nn.Module):
         """
 
         ssc_pred = out_dict["ssc_logit"]
-        sem_pred_2 = out_dict["sem_logit"]
-
-        target_2 = torch.from_numpy(img_metas[0]['target_1_2']).unsqueeze(0).to(target.device)
-        coords = out_dict['coords']
-        sp_target_2 = target_2.clone()[0, coords[:, 0], coords[:, 1], coords[:, 2]]
 
         if step_type== "train":
+            sem_pred_2 = out_dict["sem_logit"]
+
+            target_2 = torch.from_numpy(img_metas[0]['target_1_2']).unsqueeze(0).to(target.device)
+            coords = out_dict['coords']
+            sp_target_2 = target_2.clone()[0, coords[:, 0], coords[:, 1], coords[:, 2]]
             loss_dict = dict()
 
             class_weight = self.class_weights.type_as(target)
