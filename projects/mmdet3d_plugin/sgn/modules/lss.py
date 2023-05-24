@@ -762,8 +762,8 @@ class ViewTransformerLiftSplatShootVoxel(ViewTransformerLSSBEVDepth):
         """
         B, N, H, W = gt_depths.shape
         fH, fW = int(math.ceil(H / self.downsample)), int(math.ceil(W / self.downsample))
-        gt_depths = F.interpolate(gt_depths, (fH*self.downsample, fW*self.downsample), mode='bilinear')
-        
+        gt_depths = F.interpolate(gt_depths, (fH*self.downsample, fW*self.downsample), mode='bilinear', align_corners=True)
+
         gt_depths = gt_depths.view(B * N,
                                    fH, self.downsample,
                                    fW, self.downsample, 1)
