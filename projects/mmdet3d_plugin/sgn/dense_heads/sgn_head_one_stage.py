@@ -115,7 +115,11 @@ class SGNHeadOne(nn.Module):
 
         x3d = x3d.reshape(bs, c, -1)
         # Load proposals
-        proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)
+        probs = occ.sigmoid()[0]
+        selected_idx = torch.topk(probs.reshape(-1), k=int(0.4*self.bev_h*self.bev_w*self.bev_z))[1].cpu().numpy()
+        proposal = np.zeros(self.bev_h*self.bev_w*self.bev_z)
+        proposal[selected_idx] = 1
+       
         unmasked_idx = np.asarray(np.where(proposal.reshape(-1)>0)).astype(np.int32)
         masked_idx = np.asarray(np.where(proposal.reshape(-1)==0)).astype(np.int32)
         vox_coords = self.get_voxel_indices()
