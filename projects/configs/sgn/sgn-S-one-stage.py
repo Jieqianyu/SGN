@@ -40,18 +40,18 @@ model = dict(
        type='ResNet',
        depth=50,
        num_stages=4,
-       out_indices=(2,),
-       frozen_stages=1,
+       out_indices=(1, 2,),
+       frozen_stages=0,
        norm_cfg=dict(type='BN', requires_grad=False),
        norm_eval=True,
        style='pytorch'),
    img_neck=dict(
        type='FPN',
-       in_channels=[1024],
+       in_channels=[512, 1024],
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
-       num_outs=1,
+       num_outs=2,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
        type='SGNHeadOne',
@@ -59,21 +59,18 @@ model = dict(
        bev_w=128,
        bev_z=16,
        embed_dims=_dim_,
-       lss_neck=dict(
-           type='ViewTransformerLiftSplatShootVoxel',
-           numC_input=_dim_,
-           downsample=16,
-           cam_channels=27,
-           loss_depth_weight=1.0,
+       lss_depth=dict(
+           depth_config=dict(
+                in_channels=_dim_,
+                mid_channels=_dim_//2),
+           downsample=8,
            grid_config=grid_config,
            data_config={'input_size': img_size},
-           numC_Trans=_dim_,
-           vp_megvii=False
        ),
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
-       scale_2d_list=[16]
+       scale_2d_list=[8, 16]
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],
@@ -143,7 +140,7 @@ lr_config = dict(
    warmup_iters=500,
    warmup_ratio=1.0 / 3,
    min_lr_ratio=1e-3)
-total_epochs = 20
+total_epochs = 48
 evaluation = dict(interval=1)
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)

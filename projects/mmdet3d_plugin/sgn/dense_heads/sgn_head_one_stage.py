@@ -15,11 +15,12 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models import HEADS, builder
+from mmdet.models import HEADS
 from projects.mmdet3d_plugin.sgn.utils.header import Header, SparseHeader
 from projects.mmdet3d_plugin.sgn.modules.sgb import SGB
 from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
 from projects.mmdet3d_plugin.sgn.modules.flosp import FLoSP
+from projects.mmdet3d_plugin.sgn.modules.lss_depth import LSSDepth
 from projects.mmdet3d_plugin.sgn.utils.lovasz_losses import lovasz_softmax
 from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss
 
@@ -32,7 +33,7 @@ class SGNHeadOne(nn.Module):
         bev_w,
         bev_z,
         embed_dims,
-        lss_neck,
+        lss_depth,
         scale_2d_list,
         CE_ssc_loss=True,
         geo_scal_loss=True,
@@ -49,7 +50,7 @@ class SGNHeadOne(nn.Module):
         self.n_classes = 20
         self.embed_dims = embed_dims
 
-        self.lss = builder.build_neck(lss_neck)
+        self.lss_depth = LSSDepth(**lss_depth)
         self.flosp = FLoSP(scale_2d_list)
         self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
@@ -62,7 +63,7 @@ class SGNHeadOne(nn.Module):
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
 
         self.occ_header = nn.Sequential(
-            SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=1),
+            SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=2),
             nn.Conv3d(self.embed_dims//2, 1, kernel_size=3, padding=1)
         )
         self.aux_header = SparseHeader(self.n_classes, feature=self.embed_dims)
@@ -77,7 +78,7 @@ class SGNHeadOne(nn.Module):
         self.geo_scal_loss = geo_scal_loss
         self.save_flag = save_flag
     
-    def gen_3d_feat(self, x, img_metas):
+    def gen_depth_prob(self, x, img_metas):
         lidar2cam, intrins = [], []
         for img_meta in img_metas:
             lidar2cam.append(img_meta['lidar2cam'])
@@ -87,13 +88,9 @@ class SGNHeadOne(nn.Module):
         lidar2cam = x.new_tensor(lidar2cam)  # (B, N, 4, 4)
         intrins = x.new_tensor(intrins)  # (B, N, 3, 3)
         rots, trans = lidar2cam[:, :, :3, :3], lidar2cam[:, :, :3, 3]
-        B, N = rots.shape[:2]
-        post_rots, post_trans, bda = x.new_tensor(np.eye(3)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1), \
-            torch.zeros_like(trans), x.new_tensor(np.eye(4)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1)
-        mlp_input = self.lss.get_mlp_input(rots, trans, intrins, post_rots, post_trans, bda)
-        geo_inputs = [rots, trans, intrins, post_rots, post_trans, bda, mlp_input]
+        geo_inputs = [rots, trans, intrins]
         
-        x, depth = self.lss([x] + geo_inputs)
+        x, depth = self.lss_depth([x] + geo_inputs)
         
         return x, depth
         
@@ -111,7 +108,9 @@ class SGNHeadOne(nn.Module):
         x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
         bs, c, _ = x3d.shape
         x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
-        occ = self.occ_header(x3d).squeeze(1)
+
+        prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
+        occ = self.occ_header(x3d*prob_3d*100).squeeze(1)
 
         x3d = x3d.reshape(bs, c, -1)
         # Load proposals
@@ -145,6 +144,7 @@ class SGNHeadOne(nn.Module):
         out["sem_logit"] = aux_out
         out["coords"] = seed_coords
         out["occ"] = occ
+        out["depth"] = depth
 
         return out 
 
@@ -185,6 +185,14 @@ class SGNHeadOne(nn.Module):
             loss_sem = lovasz_softmax(F.softmax(sem_pred_2, dim=1), sp_target_2, ignore=255)
             loss_sem += F.cross_entropy(sem_pred_2, sp_target_2.long(), ignore_index=255)
             loss_dict['loss_sem'] = loss_sem
+
+            gt_depths = []
+            for img_meta in img_metas:
+                gt_depths.append(img_meta['depth'])
+            gt_depths = np.asarray(gt_depths)
+            gt_depths = out_dict["depth"].new_tensor(gt_depths)
+            loss_depth = self.lss_depth.get_bce_depth_loss(gt_depths, out_dict["depth"])
+            loss_dict['loss_depth'] = loss_depth
 
             ones = torch.ones_like(target_2).to(target_2.device)
             target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
