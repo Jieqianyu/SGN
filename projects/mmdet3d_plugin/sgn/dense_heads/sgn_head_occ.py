@@ -49,7 +49,6 @@ class SGNHeadOcc(nn.Module):
 
         self.lss_depth = LSSDepth(**lss_depth)
         self.flosp = FLoSP(scale_2d_list)
-        self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
 
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=2),
@@ -98,10 +97,10 @@ class SGNHeadOcc(nn.Module):
         """
         x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
         bs, c, _ = x3d.shape
-        x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
+        x3d = x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z)
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ = self.occ_header(x3d*prob_3d)
+        occ = self.occ_header(x3d*prob_3d + x3d)
 
         out = {}
         out["occ"] = occ
@@ -135,7 +134,7 @@ class SGNHeadOcc(nn.Module):
             loss_dict['loss_depth'] = loss_depth
 
             class_weights = self.class_weights.type_as(target)
-            loss_occ = BCE_ssc_loss(out_dict['occ'], target, class_weights, 0.5)
+            loss_occ = BCE_ssc_loss(out_dict['occ'], target, class_weights, 0.54)
             loss_dict['loss_occ'] = loss_occ
 
             return loss_dict
