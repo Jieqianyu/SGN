@@ -100,10 +100,11 @@ class SGNHeadDS(nn.Module):
         seed_feats_desc = self.sgb(seed_feats, coords_torch)
 
         # Complete voxel features
-        vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
-        vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
-        vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
-        vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = x3d_geo.reshape(bs, c, -1)[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0)
+        # vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
+        # vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
+        # vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
+        # vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = x3d_geo.reshape(bs, c, -1)[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0)
+        vox_feats_flatten = x3d.permute(0, 2, 3, 4, 1)
 
         vox_feats_flatten = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims)
         vox_feats_diff = self.sdb(vox_feats_flatten.permute(3, 0, 1, 2).unsqueeze(0)) # 1, C,H,W,Z
