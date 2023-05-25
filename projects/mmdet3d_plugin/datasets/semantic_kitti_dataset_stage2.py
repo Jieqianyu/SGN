@@ -419,12 +419,6 @@ class SemanticKittiDatasetStage2(Dataset):
 
         # load ground truth
         if self.split == "train":
-            target_1_2_path = os.path.join(self.label_root, sequence, frame_id + "_1_2.npy")
-            target_1_2 = np.load(target_1_2_path)
-            target_1_2 = target_1_2.reshape(-1)
-            target_1_2 = target_1_2.reshape(128, 128, 16)
-            target_1_2 = target_1_2.astype(np.float32)
-
             depths = []
             for i in [0]+self.target_frames:
                 id = int(frame_id)
@@ -438,8 +432,16 @@ class SemanticKittiDatasetStage2(Dataset):
                 depth[depth > 0] = depth[depth > 0] / 256
                 depths.append(depth[: self.img_H, : self.img_W])
         else:
-            target_1_2 = None
             depths = None
+
+        if self.split == 'train' or self.split == 'val':
+            target_1_2_path = os.path.join(self.label_root, sequence, frame_id + "_1_2.npy")
+            target_1_2 = np.load(target_1_2_path)
+            target_1_2 = target_1_2.reshape(-1)
+            target_1_2 = target_1_2.reshape(128, 128, 16)
+            target_1_2 = target_1_2.astype(np.float32)
+        else:
+            target_1_2 = None
 
         meta_dict = dict(
             sequence_id = sequence,
