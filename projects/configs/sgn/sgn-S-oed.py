@@ -1,19 +1,13 @@
-work_dir = '/public/experiments/yzdad/sgn/result/sgn-S-cross-Q5348'
+work_dir = '/public/experiments/yzdad/sgn/result/sgn-S-oed-Q5348'
 _base_ = [
     '../_base_/default_runtime.py'
 ]
 plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
-_num_layers_cross_ = 3
-_num_points_cross_ = 8
 _dim_ = 128
-_pos_dim_ = _dim_//2
-_ffn_dim_ = _dim_*2
-_num_levels_ = 1
 
 _labels_tag_ = 'labels'
-_num_cams_ = 1
 _temporal_ = []
 point_cloud_range = [0, -25.6, -2.0, 51.2, 25.6, 4.4]
 voxel_size = [0.2, 0.2, 0.2]
@@ -42,10 +36,10 @@ model = dict(
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
-       num_outs=_num_levels_,
+       num_outs=1,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
-       type='SGNHeadCross',
+       type='SGNHeadOED',
        bev_h=128,
        bev_w=128,
        bev_z=16,
@@ -53,50 +47,8 @@ model = dict(
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
-       cross_transformer=dict(
-           type='PerceptionTransformer',
-           rotate_prev_bev=True,
-           use_shift=True,
-           embed_dims=_dim_,
-           num_cams = _num_cams_,
-           encoder=dict(
-               type='VoxFormerEncoder',
-               num_layers=_num_layers_cross_,
-               pc_range=point_cloud_range,
-               num_points_in_pillar=8,
-               return_intermediate=False,
-               transformerlayers=dict(
-                   type='VoxFormerLayer',
-                   attn_cfgs=[
-                       dict(
-                           type='DeformCrossAttention',
-                           pc_range=point_cloud_range,
-                           num_cams=_num_cams_,
-                           deformable_attention=dict(
-                               type='MSDeformableAttention3D',
-                               embed_dims=_dim_,
-                               num_points=_num_points_cross_,
-                               num_levels=_num_levels_),
-                           embed_dims=_dim_,
-                       )
-                   ],
-                   ffn_cfgs=dict(
-                       type='FFN',
-                       embed_dims=_dim_,
-                       feedforward_channels=1024,
-                       num_fcs=2,
-                       ffn_drop=0.,
-                       act_cfg=dict(type='ReLU', inplace=True),
-                   ),
-                   feedforward_channels=_ffn_dim_,
-                   ffn_dropout=0.1,
-                   operation_order=('cross_attn', 'norm', 'ffn', 'norm')))),
-       positional_encoding=dict(
-           type='LearnedPositionalEncoding',
-           num_feats=_pos_dim_,
-           row_num_embed=512,
-           col_num_embed=512,
-           )),
+       scale_2d_list=[16]
+       ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],
        voxel_size=voxel_size,

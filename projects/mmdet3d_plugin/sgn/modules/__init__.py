@@ -4,3 +4,4 @@ from .sgb import SGB
 from .transformer import PerceptionTransformer
 from .deformable_attention import DeformCrossAttention, MSDeformableAttention3D, DeformSelfAttention
 from .lss import ViewTransformerLiftSplatShootVoxel
+from .knn_transformer import KnnTransformer
