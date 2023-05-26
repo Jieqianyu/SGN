@@ -105,46 +105,41 @@ class SGNHeadOne(nn.Module):
         Returns:
             ssc_logit (Tensor): Outputs from the segmentation head.
         """
+        out = {}
         x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
         bs, c, _ = x3d.shape
         x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ = self.occ_header(x3d*prob_3d+x3d).squeeze(1)
+        occ = self.occ_header(x3d*prob_3d+x3d).squeeze(1) # bs, h, w, z
+        out["depth"] = depth
+        out["occ"] = occ
 
-        x3d = x3d.reshape(bs, c, -1)
-        # Load proposals
-        probs = occ.sigmoid()[0]
-        selected_idx = torch.topk(probs.reshape(-1), k=int(0.4*self.bev_h*self.bev_w*self.bev_z))[1].cpu().numpy()
-        proposal = np.zeros(self.bev_h*self.bev_w*self.bev_z)
-        proposal[selected_idx] = 1
-       
-        unmasked_idx = np.asarray(np.where(proposal.reshape(-1)>0)).astype(np.int32)
-        masked_idx = np.asarray(np.where(proposal.reshape(-1)==0)).astype(np.int32)
-        vox_coords = self.get_voxel_indices()
+        # voxel coords
+        vox_coords = torch.from_numpy(self.get_voxel_indices()).to(x3d.device)
 
-        # Compute seed features
-        seed_feats = x3d[0, :, vox_coords[unmasked_idx[0], 3]].permute(1, 0)
-        seed_coords = vox_coords[unmasked_idx[0], :3]
-        coords_torch = torch.from_numpy(np.concatenate(
-            [np.zeros_like(seed_coords[:, :1]), seed_coords], axis=1)).to(seed_feats.device)
-        seed_feats_desc = self.sgb(seed_feats, coords_torch)
+        # compute seed features
+        occ_mask = (occ[0] > 0).flatten()
+        x3d = x3d[0].reshape(c, -1).permute(1, 0)
+        seed_feats = x3d[vox_coords[occ_mask, 3], :]
+        if torch.any(occ_mask).sum() > 50:
+            seed_coords = vox_coords[occ_mask, :3]
+            coords_torch = torch.cat([torch.zeros_like(seed_coords[:, :1]), seed_coords], dim=1)
+            seed_feats = self.sgb(seed_feats, coords_torch)
+
+            out["sem_logit"] = self.aux_header(seed_feats)
+            out["coords"] = seed_coords
 
         # Complete voxel features
-        vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
-        vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
-        vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
-        vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = self.mlp_prior(x3d[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0))
+        vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, c), device=x3d.device)
+        vox_feats_flatten = vox_feats.reshape(-1, c)
+        vox_feats_flatten[vox_coords[occ_mask, 3], :] = seed_feats
+        vox_feats_flatten[vox_coords[~occ_mask, 3], :] = self.mlp_prior(x3d[vox_coords[~occ_mask, 3], :])
 
-        vox_feats_flatten = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims)
-        vox_feats_diff = self.sdb(vox_feats_flatten.permute(3, 0, 1, 2).unsqueeze(0)) # 1, C,H,W,Z
-
-        aux_out = self.aux_header(seed_feats_desc)
-        out = self.ssc_header(vox_feats_diff)
-        out["sem_logit"] = aux_out
-        out["coords"] = seed_coords
-        out["occ"] = occ
-        out["depth"] = depth
+        vox_feats_diff = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, c).permute(3, 0, 1, 2).unsqueeze(0) # 1, C,H,W,Z
+        vox_feats_diff = self.sdb(vox_feats_diff) 
+        ssc_out = self.ssc_header(vox_feats_diff)
+        out.update(ssc_out)
 
         return out 
 
@@ -162,12 +157,9 @@ class SGNHeadOne(nn.Module):
         ssc_pred = out_dict["ssc_logit"]
     
         if step_type== "train":
-            sem_pred_2 = out_dict["sem_logit"]
+            loss_dict = dict()
 
             target_2 = torch.from_numpy(img_metas[0]['target_1_2']).unsqueeze(0).to(target.device)
-            coords = out_dict['coords']
-            sp_target_2 = target_2.clone()[0, coords[:, 0], coords[:, 1], coords[:, 2]]
-            loss_dict = dict()
 
             class_weight = self.class_weights.type_as(target)
             if self.CE_ssc_loss:
@@ -182,9 +174,16 @@ class SGNHeadOne(nn.Module):
                 loss_geo_scal = geo_scal_loss(ssc_pred, target)
                 loss_dict['loss_geo_scal'] = loss_geo_scal
 
-            loss_sem = lovasz_softmax(F.softmax(sem_pred_2, dim=1), sp_target_2, ignore=255)
-            loss_sem += F.cross_entropy(sem_pred_2, sp_target_2.long(), ignore_index=255)
-            loss_dict['loss_sem'] = loss_sem
+            if out_dict.get("sem_logit", None) is not None:
+                sem_pred = out_dict["sem_logit"]
+                coords = out_dict['coords']
+                sp_target = target_2.clone()[0, coords[:, 0], coords[:, 1], coords[:, 2]]
+
+                loss_sem = lovasz_softmax(F.softmax(sem_pred, dim=1), sp_target, ignore=255)
+                loss_sem += F.cross_entropy(sem_pred, sp_target.long(), ignore_index=255)
+                loss_dict['loss_sem'] = loss_sem
+            else:
+                loss_dict['loss_sem'] = loss_dict['loss_ssc'].new_tensor(np.zeros(1))
 
             gt_depths = []
             for img_meta in img_metas:
