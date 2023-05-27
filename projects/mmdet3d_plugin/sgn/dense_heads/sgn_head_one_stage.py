@@ -22,7 +22,7 @@ from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
 from projects.mmdet3d_plugin.sgn.modules.flosp import FLoSP
 from projects.mmdet3d_plugin.sgn.modules.lss_depth import LSSDepth
 from projects.mmdet3d_plugin.sgn.utils.lovasz_losses import lovasz_softmax
-from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss
+from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss, BCE_ssc_loss
 
 @HEADS.register_module()
 class SGNHeadOne(nn.Module):
@@ -64,7 +64,7 @@ class SGNHeadOne(nn.Module):
 
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=2),
-            nn.Conv3d(self.embed_dims//2, 1, kernel_size=3, padding=1)
+            nn.Conv3d(self.embed_dims//2, 2, kernel_size=3, padding=1)
         )
         self.aux_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
@@ -111,18 +111,19 @@ class SGNHeadOne(nn.Module):
         x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ = self.occ_header(x3d*prob_3d+x3d).squeeze(1) # bs, h, w, z
+        occ_logit = self.occ_header(x3d*prob_3d+x3d) # bs, 2, h, w, z
         out["depth"] = depth
-        out["occ"] = occ
+        out["occ_logit"] = occ_logit
 
         # voxel coords
         vox_coords = torch.from_numpy(self.get_voxel_indices()).to(x3d.device)
 
         # compute seed features
-        occ_mask = (occ[0] > 0).flatten()
+        occ_prob = torch.softmax(occ_logit, dim=1)[:, 1]
+        occ_mask = (occ_prob > 0.5).flatten()
         x3d = x3d[0].reshape(c, -1).permute(1, 0)
         seed_feats = x3d[vox_coords[occ_mask, 3], :]
-        if torch.any(occ_mask).sum() > 50:
+        if torch.sum(occ_mask) > 50:
             seed_coords = vox_coords[occ_mask, :3]
             coords_torch = torch.cat([torch.zeros_like(seed_coords[:, :1]), seed_coords], dim=1)
             seed_feats = self.sgb(seed_feats, coords_torch)
@@ -192,10 +193,11 @@ class SGNHeadOne(nn.Module):
             gt_depths = out_dict["depth"].new_tensor(gt_depths)
             loss_depth = self.lss_depth.get_bce_depth_loss(gt_depths, out_dict["depth"])
             loss_dict['loss_depth'] = loss_depth
-
+            
+            occ_weight = torch.stack([class_weight[0], torch.sum(class_weight[1:])])
             ones = torch.ones_like(target_2).to(target_2.device)
             target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
-            loss_occ = F.binary_cross_entropy(out_dict['occ'].sigmoid()[target_2_binary!=255], target_2_binary[target_2_binary!=255].float())
+            loss_occ = BCE_ssc_loss(out_dict['occ_logit'], target_2_binary, occ_weight, 0.54)
             loss_dict['loss_occ'] = loss_occ
 
             return loss_dict

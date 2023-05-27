@@ -1,4 +1,4 @@
-work_dir = '/public/experiments/yzdad/sgn/result/sgn-S-oed-Q5348'
+work_dir = '/public/experiments/yzdad/sgn/result/sgn-S-oed-prior-Q5348'
 _base_ = [
     '../_base_/default_runtime.py'
 ]

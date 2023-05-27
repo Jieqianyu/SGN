@@ -55,6 +55,13 @@ class SGNHeadOED(nn.Module):
         self.flosp = FLoSP(scale_2d_list)
         self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
 
+        self.mlp_prior = nn.Sequential(
+            nn.Linear(self.embed_dims, self.embed_dims//2),
+            nn.LayerNorm(self.embed_dims//2),
+            nn.LeakyReLU(),
+            nn.Linear(self.embed_dims//2, self.embed_dims)
+        )
+
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
 
@@ -100,13 +107,13 @@ class SGNHeadOED(nn.Module):
         seed_aux_out = self.seed_header(seed_feats_desc)
         compressed_mask = seed_aux_out.softmax(1)[:, 0] > 0.5
         seed_compressed = torch.empty((seed_feats_desc.shape[0], self.embed_dims), device=x3d.device)
-        seed_compressed[compressed_mask] = torch.zeros(compressed_mask.sum(), self.embed_dims, device=x3d.device)
+        seed_compressed[compressed_mask] = self.mlp_prior(seed_feats[compressed_mask])
         seed_compressed[~compressed_mask] = seed_feats_desc[~compressed_mask]
 
         complete_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
         complete_feats = complete_feats.reshape(-1, self.embed_dims)
         complete_feats[vox_coords[unmasked_idx[0], 3], :] = seed_compressed
-        complete_feats[vox_coords[masked_idx[0], 3], :] = torch.zeros(vox_coords[masked_idx[0], 3].shape[0], self.embed_dims, device=x3d.device)
+        complete_feats[vox_coords[masked_idx[0], 3], :] = self.mlp_prior(x3d[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0))
         complete_feats = complete_feats.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims).permute(3, 0, 1, 2).unsqueeze(0)
         complete_feats = self.sdb(complete_feats)
 
