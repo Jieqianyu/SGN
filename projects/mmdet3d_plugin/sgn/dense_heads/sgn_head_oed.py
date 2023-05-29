@@ -51,20 +51,14 @@ class SGNHeadOED(nn.Module):
             nn.LeakyReLU()
         )
 
-        self.reduce_mlp = nn.Sequential(
-            nn.Linear(self.embed_dims*2, self.embed_dims//2),
-            nn.LayerNorm(self.embed_dims//2),
-            nn.LeakyReLU()
-        )
         self.guidance = nn.Sequential(
-            SDB(channel=self.embed_dims//2, out_channel=self.embed_dims//4, depth=1),
+            SDB(channel=self.embed_dims, out_channel=self.embed_dims//4, depth=1),
             nn.Conv3d(self.embed_dims//4, 24, kernel_size=1)
         )
         self.cspn = Affinity_Propagate(prop_time=1)
 
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=2)
-        self.sparse_upsampler = Upsampler()
 
         self.seed_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
@@ -98,7 +92,7 @@ class SGNHeadOED(nn.Module):
         # Load proposals and compute seed features
         proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)
         seed_coords = torch.from_numpy(np.stack(np.where(proposal>0), -1).astype(np.int32)).to(device)
-        seed_feats = self.img_feats_sampling(seed_coords, lidar2img, mlvl_feats[-1][0], voxel_size=0.4)
+        seed_feats = self.img_feats_sampling(seed_coords, lidar2img, mlvl_feats[0].squeeze(0), voxel_size=0.4)
         seed_feats_desc = self.sgb(seed_feats, torch.cat([torch.zeros_like(seed_coords[:, :1]), seed_coords], dim=1))
         seed_logit = self.seed_header(seed_feats_desc)
 
@@ -109,26 +103,13 @@ class SGNHeadOED(nn.Module):
         ).dense()
         voxel_feats_diff = self.sdb(voxel_feats) # 1, C, H, W, Z
         coarse_logit = self.ssc_header(voxel_feats_diff)["ssc_logit"]
-
-        # refinement
-        seed_coords_up = self.sparse_upsampler.upsample_inds(seed_coords)
-        seed_feats_up = self.sparse_upsampler.upsample_feats(seed_feats_desc)
-        seed_logit_up = self.sparse_upsampler.upsample_feats(seed_logit)
         
-        sampled_feats = self.img_feats_sampling(seed_coords_up, lidar2img, mlvl_feats[-2][0], voxel_size=0.2)
-        sampled_feats = self.reduce_mlp(torch.cat([seed_feats_up, sampled_feats], dim=1))
-        guidance = self.guidance(
-            spconv.SparseConvTensor(
-                sampled_feats, torch.cat([torch.zeros_like(seed_coords_up[:, :1]), seed_coords_up.int()], dim=1), 
-                np.array([self.bev_h*2, self.bev_w*2, self.bev_z*2], np.int32), 1
-            ).dense()
-        ).squeeze(0) # 24, h, w, z
-        
-        voxel_logit_up = spconv.SparseConvTensor(
-            seed_logit_up, torch.cat([torch.zeros_like(seed_coords_up[:, :1]), seed_coords_up.int()], dim=1), 
-            np.array([self.bev_h*2, self.bev_w*2, self.bev_z*2], np.int32), 1
+        voxel_logit = spconv.SparseConvTensor(
+            seed_logit, torch.cat([torch.zeros_like(seed_coords[:, :1]), seed_coords.int()], dim=1), 
+            np.array([self.bev_h, self.bev_w, self.bev_z], np.int32), 1
         ).dense().squeeze(0)  # 20, h, w, z
-        refine_logit = self.cspn(guidance, voxel_logit_up).unsqueeze(0)
+        guidance = self.guidance(voxel_feats).squeeze(0)
+        refine_logit = F.interpolate(self.cspn(guidance, voxel_logit).unsqueeze(0), scale_factor=2, mode='trilinear', align_corners=True)
 
         out['coarse_logit'] = coarse_logit
         out["ssc_logit"] = coarse_logit + refine_logit
@@ -306,45 +287,6 @@ class SGNHeadOED(nn.Module):
         y_pred_bin.tofile(os.path.join(pred_folder, img_metas[0]['frame_id'] + ".label"))
 
 
-class Upsampler(nn.Module):
-    # nearest neighbor 2x upsampling for sparse 3D array
-
-    def __init__(self):
-        super().__init__()
-        self.register_buffer('upsample_offsets',
-            torch.Tensor(
-                [
-                    [
-                        [0, 0, 0],
-                        [1, 0, 0],
-                        [0, 1, 0],
-                        [0, 0, 1],
-                        [1, 1, 0],
-                        [0, 1, 1],
-                        [1, 0, 1],
-                        [1, 1, 1],
-                    ]
-                ]
-            ).to(torch.int32)
-        )
-        self.register_buffer('upsample_mul',
-            torch.Tensor([[[2, 2, 2]]]).to(torch.int32)
-        )
-
-    def upsample_inds(self, voxel_inds):
-        return (
-            voxel_inds[:, None] * self.upsample_mul + self.upsample_offsets
-        ).reshape(-1, 3)
-
-    def upsample_feats(self, feats):
-        return (
-            feats[:, None]
-            .repeat(1, 8, 1)
-            .reshape(-1, feats.shape[-1])
-            .to(torch.float32)
-        )
-
-
 class Affinity_Propagate(nn.Module):
 
     def __init__(self,
@@ -395,7 +337,7 @@ class Affinity_Propagate(nn.Module):
     def forward(self, guidance, blur):
         self.gen_operator()
         
-        guidance_xyz = torch.split(guidance, 3, dim=0)
+        guidance_xyz = torch.split(guidance, guidance.shape[0]//3, dim=0)
 
         gate_wb_x, gate_sum_x = self.affinity_normalization(guidance_xyz[0].permute(3, 0, 1, 2))
         gate_wb_y, gate_sum_y = self.affinity_normalization(guidance_xyz[1].permute(2, 0, 1, 3))
