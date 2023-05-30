@@ -1,4 +1,4 @@
-work_dir = '/public/experiments/yzdad/sgn/result/oed-test'
+work_dir = '/public/experiments/yzdad/sgn/result/oed'
 _base_ = [
     '../_base_/default_runtime.py'
 ]
@@ -25,18 +25,18 @@ model = dict(
        type='ResNet',
        depth=50,
        num_stages=4,
-       out_indices=(1, 2),
-       frozen_stages=0,
+       out_indices=(2,),
+       frozen_stages=1,
        norm_cfg=dict(type='BN', requires_grad=False),
        norm_eval=True,
        style='pytorch'),
    img_neck=dict(
        type='FPN',
-       in_channels=[512, 1024],
+       in_channels=[1024],
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
-       num_outs=2,
+       num_outs=1,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
        type='SGNHeadOED',
@@ -47,6 +47,7 @@ model = dict(
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
+       scale_2d_list=[16]
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],

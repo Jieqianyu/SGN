@@ -15,7 +15,9 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models import HEADS, builder
+from mmdet.models import HEADS
+from mmdet.models.utils import build_transformer
+from mmcv.cnn.bricks.transformer import build_positional_encoding
 from projects.mmdet3d_plugin.sgn.utils.header import Header, SparseHeader
 from projects.mmdet3d_plugin.sgn.modules.sgb import SGB
 from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
@@ -32,6 +34,8 @@ class SGNHeadDS(nn.Module):
         bev_w,
         bev_z,
         embed_dims,
+        cross_transformer,
+        positional_encoding,
         scale_2d_list,
         CE_ssc_loss=True,
         geo_scal_loss=True,
@@ -48,13 +52,25 @@ class SGNHeadDS(nn.Module):
         self.n_classes = 20
         self.embed_dims = embed_dims
 
+        self.bev_embed = nn.Embedding((self.bev_h) * (self.bev_w) * (self.bev_z), self.embed_dims)
+        self.positional_encoding = build_positional_encoding(positional_encoding)
+        self.cross_transformer = build_transformer(cross_transformer)
+
         self.flosp = FLoSP(scale_2d_list)
         self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
         self.sgb = SGB(sizes=[self.bev_h, self.bev_w, self.bev_z], channels=self.embed_dims)
-        self.ggb = SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=2)
-        self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=3)
+        self.mlp_prior = nn.Sequential(
+            nn.Linear(self.embed_dims, self.embed_dims//2),
+            nn.LayerNorm(self.embed_dims//2),
+            nn.LeakyReLU(),
+            nn.Linear(self.embed_dims//2, self.embed_dims)
+        )
+        self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
 
-        self.occ_header = nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
+        self.x3d_header = nn.Sequential(
+            SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=1),
+            nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
+        )
         self.aux_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
 
@@ -78,33 +94,51 @@ class SGNHeadDS(nn.Module):
         Returns:
             ssc_logit (Tensor): Outputs from the segmentation head.
         """
-        x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
-        bs, c, _ = x3d.shape
-        x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
 
-        # geometric guidance network
-        x3d_geo = self.ggb(x3d)
-        occ = self.occ_header(x3d_geo).squeeze(1)
-
-        # Load proposals
+        bs = mlvl_feats[0].shape[0]
+        dtype = mlvl_feats[0].dtype
+        
+        # Load query proposals
         proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)
         unmasked_idx = np.asarray(np.where(proposal.reshape(-1)>0)).astype(np.int32)
         masked_idx = np.asarray(np.where(proposal.reshape(-1)==0)).astype(np.int32)
-        vox_coords = self.get_voxel_indices()
+        vox_coords, ref_3d = self.get_ref_3d()
+
+        # Compute seed features of query proposals by deformable cross attention
+        bev_queries = self.bev_embed.weight.to(dtype).unsqueeze(1).repeat(1, bs, 1) #[128*128*16, dim]
+        bev_pos_cross_attn = self.positional_encoding(torch.zeros((bs, 512, 512), device=bev_queries.device).to(dtype)).to(dtype) # [1, dim, 128*4, 128*4]
+        
+        seed_feats = self.cross_transformer(
+            mlvl_feats, 
+            bev_queries,
+            self.bev_h,
+            self.bev_w,
+            ref_3d=ref_3d,
+            unmasked_idx=unmasked_idx,
+            vox_coords=vox_coords,
+            grid_length=(self.real_h / self.bev_h, self.real_w / self.bev_w),
+            bev_pos=bev_pos_cross_attn,
+            img_metas=img_metas,
+            prev_bev=None,
+        )
 
         # semantic guidance network
-        seed_feats = x3d.reshape(bs, c, -1)[0, :, vox_coords[unmasked_idx[0], 3]].permute(1, 0)
         seed_coords = vox_coords[unmasked_idx[0], :3]
         coords_torch = torch.from_numpy(np.concatenate(
             [np.zeros_like(seed_coords[:, :1]), seed_coords], axis=1)).to(seed_feats.device)
-        seed_feats_desc = self.sgb(seed_feats, coords_torch)
+        seed_feats_desc = self.sgb(seed_feats[0], coords_torch)
+
+        x3d = self.flosp(mlvl_feats, img_metas) # bs, c, nq
+        bs, c, _ = x3d.shape
+        x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
+        occ = self.x3d_header(x3d).squeeze(1)
+        x3d = x3d.flatten(-3)
 
         # Complete voxel features
-        # vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
-        # vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
-        # vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
-        # vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = x3d_geo.reshape(bs, c, -1)[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0)
-        vox_feats_flatten = x3d.permute(0, 2, 3, 4, 1)
+        vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
+        vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
+        vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
+        vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = self.mlp_prior(x3d[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0))
 
         vox_feats_flatten = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims)
         vox_feats_diff = self.sdb(vox_feats_flatten.permute(3, 0, 1, 2).unsqueeze(0)) # 1, C,H,W,Z
@@ -186,12 +220,13 @@ class SGNHeadDS(nn.Module):
         """
         return self.step(out_dict, target, img_metas, "val")
 
-    def get_voxel_indices(self):
+    def get_ref_3d(self):
         """Get reference points in 3D.
         Args:
             self.real_h, self.bev_h
         Returns:
             vox_coords (Array): Voxel indices
+            ref_3d (Array): 3D reference points
         """
         scene_size = (51.2, 51.2, 6.4)
         vox_origin = np.array([0, -25.6, -2])
@@ -207,7 +242,10 @@ class SGNHeadDS(nn.Module):
         xv, yv, zv = np.meshgrid(range(vol_dim[0]), range(vol_dim[1]), range(vol_dim[2]), indexing='ij')
         vox_coords = np.concatenate([xv.reshape(1,-1), yv.reshape(1,-1), zv.reshape(1,-1), idx], axis=0).astype(int).T
 
-        return vox_coords
+        # Normalize the voxels centroids in lidar cooridnates
+        ref_3d = np.concatenate([(xv.reshape(1,-1)+0.5)/self.bev_h, (yv.reshape(1,-1)+0.5)/self.bev_w, (zv.reshape(1,-1)+0.5)/self.bev_z,], axis=0).astype(np.float64).T 
+
+        return vox_coords, ref_3d
 
     def save_pred(self, img_metas, y_pred):
         """Save predictions for evaluations and visualizations.

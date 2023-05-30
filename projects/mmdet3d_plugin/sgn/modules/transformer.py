@@ -90,6 +90,8 @@ class PerceptionTransformer(BaseModule):
             bev_h,
             bev_w,
             ref_3d,
+            unmasked_idx=None,
+            vox_coords=None,
             grid_length=[0.512, 0.512],
             bev_pos=None,
             prev_bev=None,
@@ -99,9 +101,16 @@ class PerceptionTransformer(BaseModule):
         """
 
         bs = mlvl_feats[0].size(0)
-        bev_queries = bev_queries.unsqueeze(1).repeat(1, bs, 1) #  #[N, 1, 64]
-        bev_pos = bev_pos.flatten(2).permute(2, 0, 1) # [N, 1, 64]
-        ref_3d = torch.from_numpy(ref_3d).unsqueeze(0).unsqueeze(0).to(bev_queries.device)
+        if unmasked_idx is not None:
+            bev_pos = bev_pos.flatten(2).permute(2, 0, 1) # [N, 1, 64]
+            bev_queries = bev_queries[vox_coords[unmasked_idx[0], 3], :, :]
+            bev_pos = bev_pos[vox_coords[unmasked_idx[0], 3], :, :]
+            ref_3d = torch.from_numpy(ref_3d[vox_coords[unmasked_idx[0], 3], :]) 
+            ref_3d = ref_3d.unsqueeze(0).unsqueeze(0).to(bev_queries.device)
+        else:
+            bev_queries = bev_queries.unsqueeze(1).repeat(1, bs, 1) #  #[N, 1, 64]
+            bev_pos = bev_pos.flatten(2).permute(2, 0, 1) # [N, 1, 64]
+            ref_3d = torch.from_numpy(ref_3d).unsqueeze(0).unsqueeze(0).to(bev_queries.device)
         
         feat_flatten = []
         spatial_shapes = []
