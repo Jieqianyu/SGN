@@ -22,7 +22,7 @@ from projects.mmdet3d_plugin.sgn.modules.sgb import SGB
 from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
 from projects.mmdet3d_plugin.sgn.modules.flosp import FLoSP
 from projects.mmdet3d_plugin.sgn.utils.lovasz_losses import lovasz_softmax
-from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss
+from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss, BCE_ssc_loss
 
 @HEADS.register_module()
 class SGNHeadOED(nn.Module):
@@ -59,25 +59,14 @@ class SGNHeadOED(nn.Module):
             nn.Linear(self.embed_dims//2, self.embed_dims)
         )
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
-
-        self.mlp_kernel = nn.Sequential(
-            nn.LayerNorm(self.embed_dims),
-            nn.Linear(self.embed_dims, self.embed_dims//2),
-            nn.LayerNorm(self.embed_dims//2),
-            nn.LeakyReLU(),
-            nn.Linear(self.embed_dims//2, self.embed_dims//2)
-        )
-        self.upsampler = nn.Sequential(
-            nn.ConvTranspose3d(self.embed_dims//2, self.embed_dims//2, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm3d(self.embed_dims//2),
-            nn.ReLU()
-        )
         
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=1),
-            nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
+            nn.InstanceNorm3d(self.embed_dims),
+            nn.Conv3d(self.embed_dims, 2, kernel_size=1)
         )
         self.sem_header = SparseHeader(self.n_classes, feature=self.embed_dims)
+        self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
 
         self.class_names =  [ "empty", "car", "bicycle", "motorcycle", "truck", "other-vehicle", "person", "bicyclist", "motorcyclist", "road", 
                             "parking", "sidewalk", "other-ground", "building", "fence", "vegetation", "trunk", "terrain", "pole", "traffic-sign",]
@@ -123,10 +112,6 @@ class SGNHeadOED(nn.Module):
         out["sem_logit"] = sem
         out["coords"] = seed_coords
 
-        prob = sem.softmax(1)
-        class_feat = (prob.permute(1, 0) @ seed_feats_desc) / (prob.sum(0).unsqueeze(-1) + 1e-8) # nclass, c
-        kernel = self.mlp_kernel(class_feat)
-
         # Complete voxel features
         vox_feats = torch.empty((self.bev_h, self.bev_w, self.bev_z, self.embed_dims), device=x3d.device)
         vox_feats_flatten = vox_feats.reshape(-1, self.embed_dims)
@@ -135,11 +120,9 @@ class SGNHeadOED(nn.Module):
 
         vox_feats_flatten = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims)
         vox_feats_diff = self.sdb(vox_feats_flatten.permute(3, 0, 1, 2).unsqueeze(0)) # 1, C,H,W,Z
-        vox_feats_diff = self.upsampler(vox_feats_diff)
-        logit = kernel @ vox_feats_diff.reshape(self.embed_dims//2, -1)
-        logit = logit.reshape(1, self.n_classes, self.bev_h*2, self.bev_w*2, self.bev_z*2)
+        ssc_dict = self.ssc_header(vox_feats_diff)
 
-        out["ssc_logit"] = logit
+        out.update(ssc_dict)
         
         return out
 
@@ -181,9 +164,10 @@ class SGNHeadOED(nn.Module):
             loss_sem += F.cross_entropy(sem_pred_2, sp_target_2.long(), ignore_index=255)
             loss_dict['loss_sem'] = loss_sem
 
+            occ_weights = torch.cat([class_weight[:1], torch.sum(class_weight[1:]).unsqueeze(0)])
             ones = torch.ones_like(target_2).to(target_2.device)
             target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
-            loss_occ = F.binary_cross_entropy(out_dict['occ'].sigmoid()[target_2_binary!=255], target_2_binary[target_2_binary!=255].float())
+            loss_occ = BCE_ssc_loss(out_dict['occ'], target_2_binary, occ_weights, 0.54)
             loss_dict['loss_occ'] = loss_occ
 
             return loss_dict
