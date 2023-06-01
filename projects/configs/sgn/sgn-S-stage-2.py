@@ -1,4 +1,4 @@
-work_dir = 'result/sgn-S-disengled-Q5348'
+work_dir = 'result/stage_2'
 _base_ = [
     '../_base_/default_runtime.py'
 ]
@@ -6,12 +6,6 @@ plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
 _dim_ = 128
-_pos_dim_ = _dim_//2
-_ffn_dim_ = _dim_*2
-_num_levels_ = 1
-_num_layers_cross_ = 3
-_num_points_cross_ = 8
-_num_cams_ = 1
 
 _labels_tag_ = 'labels'
 _temporal_ = []
@@ -45,7 +39,7 @@ model = dict(
        num_outs=1,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
-       type='SGNHeadDS',
+       type='SGNHeadStage2',
        bev_h=128,
        bev_w=128,
        bev_z=16,
@@ -53,51 +47,7 @@ model = dict(
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
-       scale_2d_list=[16],
-       cross_transformer=dict(
-           type='PerceptionTransformer',
-           rotate_prev_bev=True,
-           use_shift=True,
-           embed_dims=_dim_,
-           num_cams = _num_cams_,
-           encoder=dict(
-               type='VoxFormerEncoder',
-               num_layers=_num_layers_cross_,
-               pc_range=point_cloud_range,
-               num_points_in_pillar=8,
-               return_intermediate=False,
-               transformerlayers=dict(
-                   type='VoxFormerLayer',
-                   attn_cfgs=[
-                       dict(
-                           type='DeformCrossAttention',
-                           pc_range=point_cloud_range,
-                           num_cams=_num_cams_,
-                           deformable_attention=dict(
-                               type='MSDeformableAttention3D',
-                               embed_dims=_dim_,
-                               num_points=_num_points_cross_,
-                               num_levels=_num_levels_),
-                           embed_dims=_dim_,
-                       )
-                   ],
-                   ffn_cfgs=dict(
-                       type='FFN',
-                       embed_dims=_dim_,
-                       feedforward_channels=1024,
-                       num_fcs=2,
-                       ffn_drop=0.,
-                       act_cfg=dict(type='ReLU', inplace=True),
-                   ),
-                   feedforward_channels=_ffn_dim_,
-                   ffn_dropout=0.1,
-                   operation_order=('cross_attn', 'norm', 'ffn', 'norm')))),
-       positional_encoding=dict(
-           type='LearnedPositionalEncoding',
-           num_feats=_pos_dim_,
-           row_num_embed=512,
-           col_num_embed=512,
-           )
+       scale_2d_list=[16]
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],

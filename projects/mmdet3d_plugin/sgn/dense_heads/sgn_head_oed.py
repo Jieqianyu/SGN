@@ -62,8 +62,7 @@ class SGNHeadOED(nn.Module):
         
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=1),
-            nn.InstanceNorm3d(self.embed_dims),
-            nn.Conv3d(self.embed_dims, 2, kernel_size=1)
+            nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
         )
         self.sem_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
@@ -164,10 +163,9 @@ class SGNHeadOED(nn.Module):
             loss_sem += F.cross_entropy(sem_pred_2, sp_target_2.long(), ignore_index=255)
             loss_dict['loss_sem'] = loss_sem
 
-            occ_weights = torch.cat([class_weight[:1], torch.sum(class_weight[1:]).unsqueeze(0)])
             ones = torch.ones_like(target_2).to(target_2.device)
             target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
-            loss_occ = BCE_ssc_loss(out_dict['occ'], target_2_binary, occ_weights, 0.54)
+            loss_occ = F.binary_cross_entropy(out_dict['occ'].sigmoid()[target_2_binary!=255], target_2_binary[target_2_binary!=255].float())
             loss_dict['loss_occ'] = loss_occ
 
             return loss_dict
