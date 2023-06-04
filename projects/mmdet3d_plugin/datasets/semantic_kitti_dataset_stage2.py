@@ -440,14 +440,37 @@ class SemanticKittiDatasetStage2(Dataset):
             target_1_2 = target_1_2.reshape(-1)
             target_1_2 = target_1_2.reshape(128, 128, 16)
             target_1_2 = target_1_2.astype(np.float32)
+
+            target_1_4_path = os.path.join(self.label_root, sequence, frame_id + "_1_4.npy")
+            target_1_4 = np.load(target_1_4_path)
+            target_1_4 = target_1_4.reshape(-1)
+            target_1_4 = target_1_4.reshape(64, 64, 8)
+            target_1_4 = target_1_4.astype(np.float32)
+
+            target_1_8_path = os.path.join(self.label_root, sequence, frame_id + "_1_8.npy")
+            target_1_8 = np.load(target_1_8_path)
+            target_1_8 = target_1_8.reshape(-1)
+            target_1_8 = target_1_8.reshape(32, 32, 4)
+            target_1_8 = target_1_8.astype(np.float32)
         else:
             target_1_2 = None
+            target_1_4 = None
+            target_1_8 = None
+
+        # generate dense initial grid
+        xv, yv, zv = np.meshgrid(range(32), range(32), range(4), indexing='ij')
+        voxels_1_8 = np.stack(
+            (xv.flatten(), yv.flatten(), zv.flatten()), axis=-1
+        )
 
         meta_dict = dict(
             sequence_id = sequence,
             frame_id = frame_id,
             proposal=proposal_bin,
             target_1_2=target_1_2,
+            target_1_4=target_1_4,
+            target_1_8=target_1_8,
+            voxels_1_8=voxels_1_8,
             depth=depths,
             projected_pix=projected_pixs,
             fov_mask=fov_masks, 
