@@ -63,8 +63,8 @@ class SGNHeadOne(nn.Module):
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
 
         self.occ_header = nn.Sequential(
-            SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=2),
-            nn.Conv3d(self.embed_dims//2, 2, kernel_size=3, padding=1)
+            SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=1),
+            nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
         )
         self.aux_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
@@ -112,16 +112,15 @@ class SGNHeadOne(nn.Module):
         x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ_logit = self.occ_header(x3d*prob_3d+x3d) # bs, 2, h, w, z
+        occ = self.occ_header(x3d*prob_3d+x3d).squeeze(1) # bs, h, w, z
         out["depth"] = depth
-        out["occ_logit"] = occ_logit
+        out["occ"] = occ
 
         # voxel coords
         vox_coords = torch.from_numpy(self.get_voxel_indices()).to(x3d.device)
 
         # compute seed features
-        occ_prob = torch.softmax(occ_logit, dim=1)[:, 1]
-        occ_mask = (occ_prob > 0.5).flatten()
+        occ_mask = (occ > 0).flatten()
         x3d = x3d[0].reshape(c, -1).permute(1, 0)
         seed_feats = x3d[vox_coords[occ_mask, 3], :]
         if torch.sum(occ_mask) > 50:
@@ -195,10 +194,11 @@ class SGNHeadOne(nn.Module):
             loss_depth = self.lss_depth.get_bce_depth_loss(gt_depths, out_dict["depth"])
             loss_dict['loss_depth'] = loss_depth
             
-            occ_weight = torch.stack([class_weight[0], torch.sum(class_weight[1:])])
             ones = torch.ones_like(target_2).to(target_2.device)
             target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
-            loss_occ = BCE_ssc_loss(out_dict['occ_logit'], target_2_binary, occ_weight, 0.54)
+            loss_occ = F.binary_cross_entropy(out_dict['occ'].sigmoid()[target_2_binary!=255], target_2_binary[target_2_binary!=255].float())
+
+            loss_occ += lovasz_softmax(out_dict['occ'].sigmoid().flatten()[:, None], target_2_binary, ignore=255, classes=[1])
             loss_dict['loss_occ'] = loss_occ
 
             return loss_dict

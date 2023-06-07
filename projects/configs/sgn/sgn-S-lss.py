@@ -1,4 +1,4 @@
-work_dir = 'result/test'
+work_dir = 'result/lss'
 _base_ = [
     '../_base_/default_runtime.py'
 ]
