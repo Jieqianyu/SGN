@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .san import SimpleSAN
 
 
 class ASPP(nn.Module):
@@ -163,25 +162,4 @@ class SDB(nn.Module):
 
         return x
 
-
-class SDBv2(nn.Module):
-    def __init__(self, channel, out_channel, num_classes=20, version='v1'):
-        super().__init__()
-
-        c = out_channel
-        self.conv_in = nn.Conv3d(channel, c, kernel_size=3, padding=1)
-        basic_block = MPAC if version=='v1' else MPACv2
-        self.diffusion_1 = basic_block(c, residual=True)
-        self.san = SimpleSAN(c, num_classes=num_classes)
-        self.diffusion_2 = basic_block(c, residual=True)
-        self.aspp = ASPP(c)
-    
-    def forward(self, x):
-        x = self.conv_in(x)
-        x1 = self.diffusion_1(x)
-        x1_san, logit = self.san(x1)
-        x2 = self.diffusion_2(x1_san)
-        x2 = self.aspp(x2)
-
-        return x2, x1, x1_san, logit
 

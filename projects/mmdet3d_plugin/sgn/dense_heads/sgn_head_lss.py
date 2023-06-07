@@ -78,7 +78,8 @@ class SGNHeadLSS(nn.Module):
         intrins = np.asarray(intrins)
         lidar2cam = x.new_tensor(lidar2cam)  # (B, N, 4, 4)
         intrins = x.new_tensor(intrins)  # (B, N, 3, 3)
-        rots, trans = lidar2cam[:, :, :3, :3], lidar2cam[:, :, :3, 3]
+        cam2lidar = torch.inverse(lidar2cam)
+        rots, trans = cam2lidar[:, :, :3, :3], cam2lidar[:, :, :3, 3]
         B, N = rots.shape[:2]
         post_rots, post_trans, bda = x.new_tensor(np.eye(3)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1), \
             torch.zeros_like(trans), x.new_tensor(np.eye(4)).unsqueeze(0).unsqueeze(0).expand(B, N, -1, -1)
