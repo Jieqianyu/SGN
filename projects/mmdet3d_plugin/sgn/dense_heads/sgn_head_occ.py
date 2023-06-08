@@ -101,7 +101,7 @@ class SGNHeadOcc(nn.Module):
         x3d = x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z)
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ = self.occ_header(x3d*prob_3d + x3d)
+        occ = self.occ_header(100*x3d*prob_3d)
 
         out = {}
         out["occ"] = occ

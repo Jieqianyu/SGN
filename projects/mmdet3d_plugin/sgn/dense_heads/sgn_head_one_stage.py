@@ -112,7 +112,7 @@ class SGNHeadOne(nn.Module):
         x3d = self.bottleneck(x3d.reshape(bs, c, self.bev_h, self.bev_w, self.bev_z))
 
         prob_3d, depth = self.gen_depth_prob(mlvl_feats[0], img_metas)
-        occ = self.occ_header(x3d*prob_3d+x3d).squeeze(1) # bs, h, w, z
+        occ = self.occ_header(100*x3d*prob_3d).squeeze(1) # bs, h, w, z
         out["depth"] = depth
         out["occ"] = occ
 
