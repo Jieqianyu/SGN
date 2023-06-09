@@ -127,7 +127,7 @@ class LSSDepth(nn.Module):
 
         self.points = self.create_points()
         self.d_min, self.d_max, self.d_size = self.grid_config['dbound']
-        self.D = (self.d_max-self.d_min)/self.d_size
+        self.D = int((self.d_max-self.d_min)/self.d_size)
         self.depth_net = DepthNet(**depth_config, depth_channels=self.D)
     
     def get_downsampled_gt_depth(self, gt_depths):
@@ -139,7 +139,7 @@ class LSSDepth(nn.Module):
         """
         B, N, H, W = gt_depths.shape
         fH, fW = int(math.ceil(H / self.downsample)), int(math.ceil(W / self.downsample))
-        gt_depths = F.interpolate(gt_depths, (fH*self.downsample, fW*self.downsample), mode='nearset')
+        gt_depths = F.interpolate(gt_depths, (fH*self.downsample, fW*self.downsample), mode='nearest')
 
         gt_depths = gt_depths.view(B * N,
                                    fH, self.downsample,
@@ -224,7 +224,7 @@ class LSSDepth(nn.Module):
         weights = torch.sum(mask, dim=1) # b, nq
         weights[weights == 0] = 1
         vox_prob = torch.sum(vox_prob * mask, dim=1) / weights
-        vox_prob = vox_prob.view(B, int(self.nx[0])), int(self.nx[1]), int(self.nx[2])
+        vox_prob = vox_prob.view(B, int(self.nx[0]), int(self.nx[1]), int(self.nx[2]))
 
         return vox_prob
 
