@@ -69,17 +69,14 @@ class SGNHeadOcc(nn.Module):
         self.save_flag = save_flag
     
     def gen_depth_prob(self, x, img_metas):
-        lidar2cam, intrins = [], []
+        lidar2img, intrins = [], []
         for img_meta in img_metas:
-            lidar2cam.append(img_meta['lidar2cam'])
+            lidar2img.append(img_meta['lidar2img'])
             intrins.append(img_meta['cam_intrinsic'])
-        lidar2cam = np.asarray(lidar2cam)
-        intrins = np.asarray(intrins)
-        lidar2cam = x.new_tensor(lidar2cam)  # (B, N, 4, 4)
-        intrins = x.new_tensor(intrins)  # (B, N, 3, 3)
-        cam2lidar = torch.inverse(lidar2cam)
-        rots, trans = cam2lidar[:, :, :3, :3], cam2lidar[:, :, :3, 3]
-        geo_inputs = [rots, trans, intrins]
+        lidar2img = x.new_tensor(np.asarray(lidar2img))  # (B, N, 4, 4)
+        intrins = x.new_tensor(np.asarray(intrins))  # (B, N, 3, 3)
+
+        geo_inputs = [intrins, lidar2img]
         
         x, depth = self.lss_depth([x] + geo_inputs)
         
