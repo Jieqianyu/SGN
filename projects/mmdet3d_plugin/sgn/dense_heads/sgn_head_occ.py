@@ -29,12 +29,14 @@ class SGNHeadOcc(nn.Module):
         alpha=0.54,
         point_cloud_range,
         spatial_shape,
+        save_flag=False,
         **kwargs
     ):
         super().__init__()
 
         self.nbr_classes = 2
         self.alpha = alpha
+        self.save_flag = save_flag
 
         coors_range_xyz = [[point_cloud_range[0], point_cloud_range[3]],
                            [point_cloud_range[1], point_cloud_range[4]],
