@@ -300,12 +300,12 @@ class Voxelization(nn.Module):
         self.coors_range_xyz = coors_range_xyz
 
         self.PPmodel = nn.Sequential(
-            nn.Linear(9, 32),
-            nn.LayerNorm(64),
+            nn.Linear(9, 16),
+            nn.LayerNorm(16),
             nn.ReLU(True),
-            nn.Linear(32, 32)
+            nn.Linear(16, 16)
         )
-        self.soft_model = SoftModel(32, out_channels)
+        self.soft_model = SoftModel(16, out_channels)
 
     @staticmethod
     def sparse_quantize(pc, coors_range, spatial_shape):
@@ -347,7 +347,7 @@ class Voxelization(nn.Module):
         bxyz_indx = torch.stack([batch_idx, xidx, yidx, zidx], dim=-1).long()
         unq, unq_inv, _ = torch.unique(bxyz_indx, return_inverse=True, return_counts=True, dim=0)
 
-        pt_fea = self.prepare_input(pc, bxyz_indx, unq_inv)
+        pt_fea = self.prepare_input(pc, bxyz_indx[:, 1:], unq_inv)
         pt_fea = self.PPmodel(pt_fea)
         features = torch_scatter.scatter_mean(pt_fea, unq_inv, dim=0)
         input_tensor = spconv.SparseConvTensor(features, unq, spatial_shape=self.spatial_shape, batch_size=batch_idx.max()+1)
