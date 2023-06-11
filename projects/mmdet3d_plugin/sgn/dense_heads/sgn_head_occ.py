@@ -105,7 +105,7 @@ class SGNHeadOcc(nn.Module):
         for i, img_meta in enumerate(img_metas):
             pc = torch.from_numpy(img_meta['lidar']).float().to(device)
             points.append(pc)
-            batch_idx.append(tensor.new_full((pc.shape(0),), i))
+            batch_idx.append(tensor.new_full((pc.shape[0],), i))
         points, batch_idx = torch.cat(points), torch.cat(batch_idx)
         input = self.voxelize(points, batch_idx).permute(0, 3, 1, 2)
 
