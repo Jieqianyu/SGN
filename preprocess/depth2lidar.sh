@@ -11,10 +11,10 @@ exeFunc(){
 # Change data_path to your own specified path
 # And make sure there is enough space under data_path to store the generated data
 # data_path=/mnt/NAS/data/yiming/segformer3d_data
-data_path=
+data_path=/public/datasets/SemanticKITTI/dataset
 
-mkdir -p $data_path/lidar
-ln -s $data_path/lidar ./mobilestereonet/lidar
+mkdir -p $data_path/sequences_msnet3d_lidar
+ln -s $data_path/sequences_msnet3d_lidar ./mobilestereonet/lidar
 for i in {00..21}
 do
     exeFunc $i

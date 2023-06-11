@@ -17,3 +17,5 @@ weights
 .vscode
 result
 kitti
+depth
+lidar
