@@ -35,44 +35,13 @@ _query_tag_ = 'query_iou5348_pre7043_rec6897'
 
 model = dict(
    type='SGN',
-   pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
-   img_backbone=dict(
-       type='ResNet',
-       depth=50,
-       num_stages=4,
-       out_indices=(1, 2, 3),
-       frozen_stages=0,
-       norm_cfg=dict(type='BN', requires_grad=False),
-       norm_eval=True,
-       style='pytorch'),
-   img_neck=dict(
-       type='FPN',
-       in_channels=[512, 1024, 2048],
-       out_channels=_dim_,
-       start_level=0,
-       add_extra_convs='on_output',
-       num_outs=3,
-       relu_before_extra_convs=True),
    pts_bbox_head=dict(
        type='SGNHeadOcc',
-       bev_h=128,
-       bev_w=128,
-       bev_z=16,
-       embed_dims=_dim_,
-       lss_depth=dict(
-           depth_config=dict(
-                in_channels=_dim_,
-                mid_channels=_dim_//2),
-           downsample=8,
-           grid_config=grid_config,
-           data_config={'input_size': img_size},
-       ),
-       CE_ssc_loss=True,
-       geo_scal_loss=_geo_scal_loss_,
-       sem_scal_loss=_sem_scal_loss_,
-       scale_2d_list=[8, 16, 32]
+       point_cloud_range=point_cloud_range,
+       spatial_shape=occ_size
        ),
    train_cfg=dict(pts=dict(
+       occupancy=True,
        grid_size=[512, 512, 1],
        voxel_size=voxel_size,
        point_cloud_range=point_cloud_range,

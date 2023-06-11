@@ -29,6 +29,7 @@ class SGN(MVXTwoStageDetector):
                              img_backbone, pts_backbone, img_neck, pts_neck,
                              pts_bbox_head, img_roi_head, img_rpn_head,
                              train_cfg, test_cfg, pretrained)
+        self.only_occ = train_cfg.get('occupancy', False)
 
     def extract_img_feat(self, img, img_metas, len_queue=None):
         """Extract features of images."""
@@ -114,7 +115,10 @@ class SGN(MVXTwoStageDetector):
         
         img_metas = [each[len_queue-1] for each in img_metas]
         img = img[:, -1, ...]
-        img_feats = self.extract_feat(img=img) 
+        if self.only_occ:
+            img_feats = None
+        else:
+            img_feats = self.extract_feat(img=img) 
         losses = dict()
         losses_pts = self.forward_pts_train(img_feats, img_metas, target)
         losses.update(losses_pts)
@@ -144,7 +148,10 @@ class SGN(MVXTwoStageDetector):
         
         img_metas = [each[len_queue-1] for each in img_metas]
         img = img[:, -1, ...]
-        img_feats = self.extract_feat(img=img) 
+        if self.only_occ:
+            img_feats = None
+        else:
+            img_feats = self.extract_feat(img=img)  
         outs = self.pts_bbox_head(img_feats, img_metas, target)
         completion_results = self.pts_bbox_head.validation_step(outs, target, img_metas)
 

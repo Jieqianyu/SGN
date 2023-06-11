@@ -360,6 +360,8 @@ class SemanticKittiDatasetStage2(Dataset):
         projected_pixs = []
         fov_masks = []
 
+        scans = []
+
         # transform points from lidar to camera coordinate
         lidar2cam_rt = scan["T_velo_2_cam"]
         # camera intrisic
@@ -371,6 +373,13 @@ class SemanticKittiDatasetStage2(Dataset):
         # transform 3d point in lidar coordinate to 2D image (projection matrix)
         lidar2img_rt = (viewpad @ lidar2cam_rt)
 
+        scan_filename = os.path.join(
+                self.data_root, "dataset", "sequences_msnet3d_lidar/sequences", sequence, frame_id + ".bin"
+            )
+        scan = np.fromfile(scan_filename, dtype=np.float32)
+        scan = scan.reshape((-1, 4))
+        scan = scan[:, :3]
+
         lidar2img_rts.append(lidar2img_rt)
         lidar2cam_rts.append(lidar2cam_rt)
         cam_intrinsics.append(intrinsic)
@@ -379,6 +388,8 @@ class SemanticKittiDatasetStage2(Dataset):
         pix, mask = self.vox2pix(lidar2cam_rt, intrinsic)
         projected_pixs.append(pix)
         fov_masks.append(mask)
+
+        scans.append(scan)
 
         # for reference img
         seq_len = len(self.poses[sequence])
@@ -406,6 +417,14 @@ class SemanticKittiDatasetStage2(Dataset):
             lidar2cam_rt  = ref2cam
             lidar2img_rt = (viewpad @ lidar2cam_rt)
 
+            scan_filename = os.path.join(
+                self.data_root, "dataset", "sequences_msnet3d_lidar/sequences", sequence, target_id + ".bin"
+            )
+            scan = np.fromfile(scan_filename, dtype=np.float32)
+            scan = scan.reshape((-1, 4))
+            scan = ref2target @ scan
+            scan = scan[:, :3]
+
             lidar2img_rts.append(lidar2img_rt)
             lidar2cam_rts.append(lidar2cam_rt)
             cam_intrinsics.append(intrinsic)
@@ -414,6 +433,8 @@ class SemanticKittiDatasetStage2(Dataset):
             pix, mask = self.vox2pix(lidar2cam_rt, intrinsic)
             projected_pixs.append(pix)
             fov_masks.append(mask)
+
+            scans.append(scan)
 
         proposal_bin = self.read_occupancy_SemKITTI(proposal_path)
 
@@ -467,6 +488,7 @@ class SemanticKittiDatasetStage2(Dataset):
             sequence_id = sequence,
             frame_id = frame_id,
             proposal=proposal_bin,
+            lidar=np.concatenate(scan),
             target_1_2=target_1_2,
             target_1_4=target_1_4,
             target_1_8=target_1_8,
