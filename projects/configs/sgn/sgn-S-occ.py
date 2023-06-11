@@ -40,8 +40,8 @@ model = dict(
        point_cloud_range=point_cloud_range,
        spatial_shape=occ_size
        ),
+   occupancy=True,
    train_cfg=dict(pts=dict(
-       occupancy=True,
        grid_size=[512, 512, 1],
        voxel_size=voxel_size,
        point_cloud_range=point_cloud_range,

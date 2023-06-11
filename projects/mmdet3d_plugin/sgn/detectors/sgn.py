@@ -20,7 +20,8 @@ class SGN(MVXTwoStageDetector):
                  img_rpn_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 pretrained=None
+                 pretrained=None,
+                 occupancy=False,
                  ):
 
         super(SGN,
@@ -29,7 +30,7 @@ class SGN(MVXTwoStageDetector):
                              img_backbone, pts_backbone, img_neck, pts_neck,
                              pts_bbox_head, img_roi_head, img_rpn_head,
                              train_cfg, test_cfg, pretrained)
-        self.only_occ = train_cfg.get('occupancy', False)
+        self.only_occ = occupancy
 
     def extract_img_feat(self, img, img_metas, len_queue=None):
         """Extract features of images."""
