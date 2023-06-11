@@ -488,7 +488,7 @@ class SemanticKittiDatasetStage2(Dataset):
             sequence_id = sequence,
             frame_id = frame_id,
             proposal=proposal_bin,
-            lidar=np.concatenate(scan),
+            lidar=np.concatenate(scans),
             target_1_2=target_1_2,
             target_1_4=target_1_4,
             target_1_8=target_1_8,
