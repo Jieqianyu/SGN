@@ -45,9 +45,9 @@ class SGNHeadOcc(nn.Module):
         self.pool = nn.MaxPool2d(2)  # [F=2; S=2; P=0; D=1]
 
         self.pooling = nn.MaxPool3d((2, 2, 2), stride=(2, 2, 2))
-        self.class_frequencies_level1 =  np.array([5.41773033e09, 4.03113667e08])
-        self.class_weights_level_1 = torch.from_numpy(
-            1 / np.log(self.class_frequencies_level1 + 0.001)
+        self.class_frequencies =  np.array([5.41773033e09, 4.03113667e08])
+        self.class_weights = torch.from_numpy(
+            1 / np.log(self.class_frequencies + 0.001)
         )
 
         self.Encoder_block1 = nn.Sequential(
