@@ -350,7 +350,7 @@ class Voxelization(nn.Module):
         pt_fea = self.prepare_input(pc, bxyz_indx[:, 1:], unq_inv)
         pt_fea = self.PPmodel(pt_fea)
         features = torch_scatter.scatter_mean(pt_fea, unq_inv, dim=0)
-        input_tensor = spconv.SparseConvTensor(features, unq, spatial_shape=self.spatial_shape, batch_size=batch_idx.max()+1)
+        input_tensor = spconv.SparseConvTensor(features, unq.int(), spatial_shape=self.spatial_shape, batch_size=batch_idx.max()+1)
         
         return self.soft_model(input_tensor).squeeze(1).sigmoid()
 
