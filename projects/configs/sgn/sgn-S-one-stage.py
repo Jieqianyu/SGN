@@ -1,4 +1,4 @@
-work_dir = 'result/one-stage'
+work_dir = '/public/experiments/yzdad/sgn/result/oed_more'
 _base_ = [
     '../_base_/default_runtime.py'
 ]
@@ -10,22 +10,7 @@ _dim_ = 128
 _labels_tag_ = 'labels'
 _temporal_ = []
 point_cloud_range = [0, -25.6, -2.0, 51.2, 25.6, 4.4]
-occ_size = [256, 256, 32]
-img_size = (370, 1220)
-
-voxel_x = (point_cloud_range[3] - point_cloud_range[0]) / occ_size[0]
-voxel_y = (point_cloud_range[4] - point_cloud_range[1]) / occ_size[1]
-voxel_z = (point_cloud_range[5] - point_cloud_range[2]) / occ_size[2]
-voxel_size = [voxel_x, voxel_y, voxel_z]
-
-# downsample ratio in [x, y, z] when generating 3D volumes in LSS
-lss_downsample = [2, 2, 2]
-grid_config = {
-    'xbound': [point_cloud_range[0], point_cloud_range[3], voxel_x * lss_downsample[0]],
-    'ybound': [point_cloud_range[1], point_cloud_range[4], voxel_y * lss_downsample[1]],
-    'zbound': [point_cloud_range[2], point_cloud_range[5], voxel_z * lss_downsample[2]],
-    'dbound': [2.0, 58.0, 0.5],
-}
+voxel_size = [0.2, 0.2, 0.2]
 
 _sem_scal_loss_ = True
 _geo_scal_loss_ = True
@@ -40,18 +25,18 @@ model = dict(
        type='ResNet',
        depth=50,
        num_stages=4,
-       out_indices=(1, 2, 3),
-       frozen_stages=0,
+       out_indices=(2,),
+       frozen_stages=1,
        norm_cfg=dict(type='BN', requires_grad=False),
        norm_eval=True,
        style='pytorch'),
    img_neck=dict(
        type='FPN',
-       in_channels=[512, 1024, 2048],
+       in_channels=[1024],
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
-       num_outs=3,
+       num_outs=1,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
        type='SGNHeadOne',
@@ -59,18 +44,14 @@ model = dict(
        bev_w=128,
        bev_z=16,
        embed_dims=_dim_,
-       lss_depth=dict(
-           depth_config=dict(
-                in_channels=_dim_,
-                mid_channels=_dim_//2),
-           downsample=8,
-           grid_config=grid_config,
-           data_config={'input_size': img_size},
-       ),
+       pts_header_dict=dict(
+           point_cloud_range=point_cloud_range,
+           spatial_shape=[256,256,32],
+           nbr_classes=1),
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
-       scale_2d_list=[8, 16, 32]
+       scale_2d_list=[16]
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],
@@ -93,7 +74,6 @@ data = dict(
        data_root=data_root,
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
-       img_size = img_size,
        depthmodel=_depthmodel_,
        nsweep=_nsweep_,
        temporal = _temporal_,
@@ -106,7 +86,6 @@ data = dict(
        data_root=data_root,
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
-       img_size = img_size,
        depthmodel=_depthmodel_,
        nsweep=_nsweep_,
        temporal = _temporal_,
@@ -119,7 +98,6 @@ data = dict(
        data_root=data_root,
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
-       img_size = img_size,
        depthmodel=_depthmodel_,
        nsweep=_nsweep_,
        temporal = _temporal_,

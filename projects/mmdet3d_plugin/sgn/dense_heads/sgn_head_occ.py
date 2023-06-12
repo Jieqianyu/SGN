@@ -27,6 +27,7 @@ class SGNHeadOcc(nn.Module):
         self,
         *args,
         alpha=0.54,
+        nbr_classes=2,
         point_cloud_range,
         spatial_shape,
         save_flag=False,
@@ -34,7 +35,7 @@ class SGNHeadOcc(nn.Module):
     ):
         super().__init__()
 
-        self.nbr_classes = 2
+        self.nbr_classes = nbr_classes
         self.alpha = alpha
         self.save_flag = save_flag
 
@@ -354,7 +355,7 @@ class Voxelization(nn.Module):
         features = torch_scatter.scatter_mean(pt_fea, unq_inv, dim=0)
         input_tensor = spconv.SparseConvTensor(features, unq.int(), spatial_shape=self.spatial_shape, batch_size=batch_idx.max()+1)
         
-        return self.soft_model(input_tensor).squeeze(1).sigmoid()
+        return self.soft_model(input_tensor).squeeze(1)
 
 
 class SoftModel(nn.Module):
@@ -366,7 +367,7 @@ class SoftModel(nn.Module):
     def forward(self, input_tensor):
         conv_output = self.conv_block(input_tensor)
         x = self.proj_block(conv_output.features, input_coords=conv_output.indices)
-        conv_output = conv_output.replace_feature(x)
+        conv_output = conv_output.replace_feature(x.sigmoid())
         return conv_output.dense()
 
 
