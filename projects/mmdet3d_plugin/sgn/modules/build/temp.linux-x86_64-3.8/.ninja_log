@@ -1,0 +1,8 @@
+# ninja log v5
+3	27659	1686488055786334391	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_mapping.o	745407ad9540632
+4	28114	1686488056245337249	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/group_features.o	bafc8c7128edf56e
+4	29721	1686488057847347223	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_attention_indices.o	113c6246d8a4963a
+5	45626	1686488073751446258	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/group_features_gpu.o	217326cd7ee2f28d
+3	49066	1686488077184467640	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_mapping_gpu.o	6b363dc1534b93f0
+4	51973	1686488080099485796	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_attention_indices_gpu.o	245948a100d494c7
+3	68273	1686488096388587273	/home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/votr_api.o	6f418e78700eaacb

@@ -1,0 +1,34 @@
+ninja_required_version = 1.3
+cxx = c++
+nvcc = /usr/local/cuda/bin/nvcc
+
+cflags = -pthread -B /home/jm/miniconda3/envs/open-mmlab/compiler_compat -Wl,--sysroot=/ -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -fPIC -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/torch/csrc/api/include -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/TH -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/THC -I/usr/local/cuda/include -I/home/jm/miniconda3/envs/open-mmlab/include/python3.8 -c
+post_cflags = -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=ops_cuda -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++14
+cuda_cflags = -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/torch/csrc/api/include -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/TH -I/home/jm/miniconda3/envs/open-mmlab/lib/python3.8/site-packages/torch/include/THC -I/usr/local/cuda/include -I/home/jm/miniconda3/envs/open-mmlab/include/python3.8 -c
+cuda_post_cflags = -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options ''"'"'-fPIC'"'"'' -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=ops_cuda -D_GLIBCXX_USE_CXX11_ABI=0 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_86,code=sm_86 -std=c++14
+ldflags = 
+
+rule compile
+  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out $post_cflags
+  depfile = $out.d
+  deps = gcc
+
+rule cuda_compile
+  depfile = $out.d
+  deps = gcc
+  command = $nvcc  $cuda_cflags -c $in -o $out $cuda_post_cflags
+
+
+
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/votr_api.o: compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/votr_api.cpp
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_mapping.o: compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/build_mapping.cpp
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_mapping_gpu.o: cuda_compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/build_mapping_gpu.cu
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_attention_indices.o: compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/build_attention_indices.cpp
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/build_attention_indices_gpu.o: cuda_compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/build_attention_indices_gpu.cu
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/group_features.o: compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/group_features.cpp
+build /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/build/temp.linux-x86_64-3.8/former3d/net3d/ops/src/group_features_gpu.o: cuda_compile /home/jm/Workspace/SGN/projects/mmdet3d_plugin/sgn/modules/former3d/net3d/ops/src/group_features_gpu.cu
+
+
+
+
+
