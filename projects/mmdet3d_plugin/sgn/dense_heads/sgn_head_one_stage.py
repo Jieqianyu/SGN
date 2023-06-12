@@ -99,7 +99,7 @@ class SGNHeadOne(nn.Module):
 
         x3d = x3d.reshape(bs, c, -1)
         # Load proposals
-        pts_occ = self.pts_header(mlvl_feats, img_metas, target)['occ_logit']
+        pts_occ = self.pts_header(mlvl_feats, img_metas, target)['occ_logit'].squeeze(1)
         proposal =  (pts_occ > 0).float().detach().cpu().numpy()
         out['pts_occ'] = pts_occ
 

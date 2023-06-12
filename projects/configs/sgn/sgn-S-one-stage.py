@@ -45,6 +45,7 @@ model = dict(
        bev_z=16,
        embed_dims=_dim_,
        pts_header_dict=dict(
+           type='SGNHeadOcc',
            point_cloud_range=point_cloud_range,
            spatial_shape=[256,256,32],
            nbr_classes=1),
