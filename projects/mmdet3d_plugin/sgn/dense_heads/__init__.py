@@ -4,3 +4,5 @@ from .sgn_head_lss import SGNHeadLSS
 from .sgn_head_one_stage import SGNHeadOne
 from .sgn_head_occ import SGNHeadOcc
 from .sgn_head_oed import SGNHeadOED
+from .sgn_head_lite import SGNHeadLite
+from .sgn_head_lite_occ import SGNHeadOccLite
