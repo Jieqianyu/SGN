@@ -448,9 +448,8 @@ class SemanticKittiDatasetStage2(Dataset):
                     target_id = frame_id
                 else:
                     target_id = str(id + i).zfill(6)
-                depth_path = os.path.join(self.data_root, "dataset", "sequences_stereo_depth", sequence, "depth", target_id + ".png")
-                depth = skimage.io.imread(depth_path).astype("float32")
-                depth[depth > 0] = depth[depth > 0] / 256
+                depth_path = os.path.join(self.data_root, "dataset", "sequences_msnet3d_depth", 'sequences', sequence, target_id + ".npy")
+                depth = np.load(depth_path).astype("float32")
                 depths.append(depth[: self.img_H, : self.img_W])
         else:
             depths = None

@@ -377,9 +377,8 @@ class SemanticKittiDataset(Dataset):
         fov_masks.append(mask)
 
         if self.split == "train":
-            depth_path = os.path.join(self.data_root, "dataset", "sequences_stereo_depth", sequence, "depth", frame_id + ".png")
-            depth = skimage.io.imread(depth_path).astype("float32")
-            depth[depth > 0] = depth[depth > 0] / 256
+            depth_path = os.path.join(self.data_root, "dataset", "sequences_msnet3d_depth", 'sequences', sequence, frame_id + ".npy")
+            depth = np.load(depth_path).astype("float32")
             depth = cv2.resize(depth, (self.img_W, self.img_H), interpolation=cv2.INTER_NEAREST)
             if post_mat[0, 0] < 0:
                 depth = np.ascontiguousarray(np.fliplr(depth))
@@ -425,9 +424,8 @@ class SemanticKittiDataset(Dataset):
             fov_masks.append(mask)
 
             if self.split == "train":
-                depth_path = os.path.join(self.data_root, "dataset", "sequences_stereo_depth", sequence, "depth", target_id + ".png")
-                depth = skimage.io.imread(depth_path).astype("float32")
-                depth[depth > 0] = depth[depth > 0] / 256
+                depth_path = os.path.join(self.data_root, "dataset", "sequences_msnet3d_depth", 'sequences', sequence, target_id + ".npy")
+                depth = np.load(depth_path).astype("float32")
                 depth = cv2.resize(depth, (self.img_W, self.img_H), interpolation=cv2.INTER_NEAREST)
                 if post_mat[0, 0] < 0:
                     depth = np.ascontiguousarray(np.fliplr(depth))
