@@ -15,6 +15,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.modules.conv import Conv3d
 import torch_scatter
 import spconv.pytorch as spconv
 
@@ -31,6 +32,7 @@ class SGNHeadOcc(nn.Module):
         point_cloud_range,
         spatial_shape,
         save_flag=False,
+        guidance=False,
         **kwargs
     ):
         super().__init__()
@@ -98,7 +100,8 @@ class SGNHeadOcc(nn.Module):
         self.conv1_2            = nn.Conv2d(int(f*1.5) + int(f/4) + int(f/8), int(f*1.5), kernel_size=3, padding=1, stride=1)
         self.conv_out_scale_1_2 = nn.Conv2d(int(f*1.5), int(f/2), kernel_size=3, padding=1, stride=1)
 
-        self.seg_head_1_2 = SegmentationHead(1, 8, self.nbr_classes, [1, 2, 3])
+        self.guidance = guidance
+        self.seg_head_1_2 = SegmentationHead(1, 8, self.nbr_classes, [1, 2, 3], guidance=guidance)
 
     def forward(self,  mlvl_feats, img_metas, target):
         device = target.device
@@ -137,11 +140,12 @@ class SGNHeadOcc(nn.Module):
         out = F.relu(self.conv1_2(out)) # torch.Size([1, 48, 128, 128])
         out_scale_1_2__2D = self.conv_out_scale_1_2(out) # torch.Size([1, 16, 128, 128])
 
-        out_scale_1_2__3D = self.seg_head_1_2(out_scale_1_2__2D) # [1, 20, 16, 128, 128]
+        out_scale_1_2__3D, out_guidance = self.seg_head_1_2(out_scale_1_2__2D) # [1, 20, 16, 128, 128]
         out_scale_1_2__3D = out_scale_1_2__3D.permute(0, 1, 3, 4, 2) # [1, 20, 128, 128, 16]
 
         out = {}
         out['occ_logit'] = out_scale_1_2__3D
+        out['occ_x'] = out_guidance.permute(0, 1, 3, 4, 2) if self.guidance else None
 
         return out
 
@@ -259,7 +263,7 @@ class SegmentationHead(nn.Module):
   3D Segmentation heads to retrieve semantic segmentation at each scale.
   Formed by Dim expansion, Conv3D, ASPP block, Conv3D.
   '''
-  def __init__(self, inplanes, planes, nbr_classes, dilations_conv_list):
+  def __init__(self, inplanes, planes, nbr_classes, dilations_conv_list, guidance=False):
     super().__init__()
 
     # First convolution
@@ -274,6 +278,14 @@ class SegmentationHead(nn.Module):
       [nn.Conv3d(planes, planes, kernel_size=3, padding=dil, dilation=dil, bias=False) for dil in dilations_conv_list])
     self.bn2 = nn.ModuleList([nn.BatchNorm3d(planes) for dil in dilations_conv_list])
     self.relu = nn.ReLU(inplace=True)
+
+    self.guidance = guidance
+    if guidance:
+        self.guidance_layer = nn.Sequential(
+            Conv3d(planes, planes, kernel_size=3, padding=1),
+            nn.BatchNorm3d(planes),
+            nn.ReLU(inplace=True)
+        )
 
     # Convolution for output
     self.conv_classes = nn.Conv3d(planes, nbr_classes, kernel_size=3, padding=1, stride=1)
@@ -290,10 +302,15 @@ class SegmentationHead(nn.Module):
     for i in range(1, len(self.conv_list)):
       y += self.bn2[i](self.conv2[i](self.relu(self.bn1[i](self.conv1[i](x_in)))))
     x_in = self.relu(y + x_in)  # modified
+    
+    if self.guidance:
+        x_g = self.guidance_layer(x_in)
 
     x_in = self.conv_classes(x_in)
 
-    return x_in
+    if self.guidance:
+        return x_in, x_g
+    return x_in, None
 
 
 class Voxelization(nn.Module):

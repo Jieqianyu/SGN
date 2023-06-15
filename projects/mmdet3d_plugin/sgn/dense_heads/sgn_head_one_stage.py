@@ -59,7 +59,9 @@ class SGNHeadOne(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(self.embed_dims//2, self.embed_dims)
         )
-        self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
+
+        occ_channel = 8 if pts_header_dict.get('guidance', False) else 0
+        self.sdb = SDB(channel=self.embed_dims+occ_channel, out_channel=self.embed_dims//2)
         
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=1),
@@ -99,7 +101,8 @@ class SGNHeadOne(nn.Module):
 
         x3d = x3d.reshape(bs, c, -1)
         # Load proposals
-        pts_occ = self.pts_header(mlvl_feats, img_metas, target)['occ_logit'].squeeze(1)
+        pts_out = self.pts_header(mlvl_feats, img_metas, target)
+        pts_occ = pts_out['occ_logit'].squeeze(1)
         proposal =  (pts_occ > 0).float().detach().cpu().numpy()
         out['pts_occ'] = pts_occ
 
@@ -123,8 +126,10 @@ class SGNHeadOne(nn.Module):
         vox_feats_flatten[vox_coords[unmasked_idx[0], 3], :] = seed_feats_desc
         vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = self.mlp_prior(x3d[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0))
 
-        vox_feats_flatten = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims)
-        vox_feats_diff = self.sdb(vox_feats_flatten.permute(3, 0, 1, 2).unsqueeze(0)) # 1, C,H,W,Z
+        vox_feats_diff = vox_feats_flatten.reshape(self.bev_h, self.bev_w, self.bev_z, self.embed_dims).permute(3, 0, 1, 2).unsqueeze(0)
+        if self.pts_header.guidance:
+            vox_feats_diff = torch.cat([vox_feats_diff, pts_out['occ_x']], dim=1)
+        vox_feats_diff = self.sdb(vox_feats_diff) # 1, C,H,W,Z
         ssc_dict = self.ssc_header(vox_feats_diff)
 
         out.update(ssc_dict)
