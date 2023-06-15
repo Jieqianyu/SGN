@@ -64,8 +64,11 @@ class FLoSP(nn.Module):
         _, c, nq = x3d.shape
         x3d = x3d.view(bs, num_cam, c, nq)
         if num_cam > 1:
-            x3d = x3d.sum(1) / (fov_mask.sum(1).unsqueeze(1) + 1e-8)
+            fov_mask = fov_mask.view(bs, num_cam, nq)
+            weights = torch.sum(fov_mask, dim=1)  # bs, nq
+            weights[weights == 0] = 1
+            x3d = torch.sum(x3d * fov_mask.unsqueeze(-2).float(), dim=1) / weights[:, None]
         else:
-            x3d = x3d.mean(1)
+            x3d = x3d.squeeze(1)
 
         return x3d
