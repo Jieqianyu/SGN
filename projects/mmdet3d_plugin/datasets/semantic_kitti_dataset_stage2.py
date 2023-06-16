@@ -422,7 +422,7 @@ class SemanticKittiDatasetStage2(Dataset):
             )
             pts = np.fromfile(pts_filename, dtype=np.float32)
             pts = pts.reshape((-1, 4))
-            pts = (ref2target @ pts.T).T
+            pts = np.matmul(np.matmul(inv(ref), target), pts.T).T
             pts = pts[:, :3]
 
             lidar2img_rts.append(lidar2img_rt)
