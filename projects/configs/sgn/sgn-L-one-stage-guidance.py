@@ -5,7 +5,8 @@ _base_ = [
 plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
-_dim_ = 128
+_dim_ = 64
+_depth_ = 1
 
 _labels_tag_ = 'labels'
 _temporal_ = [-12, -9, -6, -3]
@@ -23,7 +24,7 @@ model = dict(
    pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
    img_backbone=dict(
        type='ResNet',
-       depth=50,
+       depth=18,
        num_stages=4,
        out_indices=(2,),
        frozen_stages=1,
@@ -44,6 +45,7 @@ model = dict(
        bev_w=128,
        bev_z=16,
        embed_dims=_dim_,
+       depth=_depth_,
        pts_header_dict=dict(
            type='SGNHeadOcc',
            point_cloud_range=point_cloud_range,
@@ -131,5 +133,4 @@ log_config = dict(
        dict(type='TensorboardLoggerHook')
    ])
 
-# checkpoint_config = None
 checkpoint_config = dict(interval=1)

@@ -1,4 +1,4 @@
-work_dir = '/public/experiments/yzdad/sgn/result/oed_more'
+work_dir = ''
 _base_ = [
     '../_base_/default_runtime.py'
 ]
@@ -130,5 +130,5 @@ log_config = dict(
        dict(type='TensorboardLoggerHook')
    ])
 
-checkpoint_config = None
-# checkpoint_config = dict(interval=2)
+# checkpoint_config = None
+checkpoint_config = dict(interval=1)

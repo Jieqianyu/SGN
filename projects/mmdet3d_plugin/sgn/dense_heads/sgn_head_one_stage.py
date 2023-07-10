@@ -35,6 +35,7 @@ class SGNHeadOne(nn.Module):
         embed_dims,
         scale_2d_list,
         pts_header_dict,
+        depth=3,
         CE_ssc_loss=True,
         geo_scal_loss=True,
         sem_scal_loss=True,
@@ -61,7 +62,7 @@ class SGNHeadOne(nn.Module):
         )
 
         occ_channel = 8 if pts_header_dict.get('guidance', False) else 0
-        self.sdb = SDB(channel=self.embed_dims+occ_channel, out_channel=self.embed_dims//2)
+        self.sdb = SDB(channel=self.embed_dims+occ_channel, out_channel=self.embed_dims//2, depth=depth)
         
         self.occ_header = nn.Sequential(
             SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=1),
