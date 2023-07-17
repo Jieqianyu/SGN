@@ -207,7 +207,7 @@ class SGNHeadAll(nn.Module):
             vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = self.mlp_prior(x3d[0, :, vox_coords[masked_idx[0], 3]].permute(1, 0))
         else:
             if self.pad_zero:
-                vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = torch.zeros(masked_idx.shape[1], self.embed_dims).to(mlvl_feats[0].dtype)
+                vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = torch.zeros((masked_idx.shape[1], self.embed_dims), device=x3d.device).to(mlvl_feats[0].dtype)
             else:
                 vox_feats_flatten[vox_coords[masked_idx[0], 3], :] = self.mask_embed.weight.view(1, self.embed_dims).expand(
                     masked_idx.shape[1], self.embed_dims).to(mlvl_feats[0].dtype)
