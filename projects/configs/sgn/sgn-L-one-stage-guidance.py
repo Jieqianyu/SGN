@@ -21,7 +21,7 @@ _query_tag_ = 'query_iou5348_pre7043_rec6897'
 
 model = dict(
    type='SGN',
-   pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
+   pretrained=dict(img='ckpts/resnet18-5c106cde.pth'),
    img_backbone=dict(
        type='ResNet',
        depth=18,
