@@ -92,7 +92,7 @@ class SGNHeadAll(nn.Module):
                 nn.Conv3d(self.embed_dims//2, 1, kernel_size=3, padding=1)
             )
         
-        self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
+        self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2 if sdb_depth > 0 else self.embed_dims)
 
         if self.one_stage:
             self.pts_header = builder.build_head(pts_header_dict)
