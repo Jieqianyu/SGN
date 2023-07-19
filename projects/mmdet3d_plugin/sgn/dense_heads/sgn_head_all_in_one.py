@@ -62,10 +62,11 @@ class SGNHeadAll(nn.Module):
             self.bev_embed = nn.Embedding((self.bev_h) * (self.bev_w) * (self.bev_z), self.embed_dims)
             self.positional_encoding = build_positional_encoding(view_transform_dict['positional_encoding'])
             self.cross_transformer = build_transformer(view_transform_dict['cross_transformer'])
-            if not self.geo_prior and not self.pad_zero:
-                self.mask_embed = nn.Embedding(1, self.embed_dims)
         else:
             raise NotImplementedError
+
+        if not self.geo_prior and not self.pad_zero:
+            self.mask_embed = nn.Embedding(1, self.embed_dims)
 
         self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
 
@@ -238,6 +239,8 @@ class SGNHeadAll(nn.Module):
 
         if step_type== "train":
             target_2 = torch.from_numpy(img_metas[0]['target_1_2']).unsqueeze(0).to(target.device)
+            ones = torch.ones_like(target_2).to(target_2.device)
+            target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
 
             if self.sem_guidance:
                 sem_pred_2 = out_dict["sem_logit"]
@@ -264,8 +267,6 @@ class SGNHeadAll(nn.Module):
                 loss_dict['loss_sem'] = loss_sem
 
             if self.geo_guidance:
-                ones = torch.ones_like(target_2).to(target_2.device)
-                target_2_binary = torch.where(torch.logical_or(target_2==255, target_2==0), target_2, ones)
                 loss_occ = F.binary_cross_entropy(out_dict['occ'].sigmoid()[target_2_binary!=255], target_2_binary[target_2_binary!=255].float())
                 loss_dict['loss_occ'] = loss_occ
 
