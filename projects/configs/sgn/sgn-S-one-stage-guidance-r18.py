@@ -6,6 +6,8 @@ plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
 _dim_ = 128
+_depth_ = 3
+
 _labels_tag_ = 'labels'
 _temporal_ = []
 point_cloud_range = [0, -25.6, -2.0, 51.2, 25.6, 4.4]
@@ -19,10 +21,10 @@ _query_tag_ = 'query_iou5348_pre7043_rec6897'
 
 model = dict(
    type='SGN',
-   pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
+   pretrained=dict(img='ckpts/resnet18-5c106cde.pth'),
    img_backbone=dict(
        type='ResNet',
-       depth=50,
+       depth=18,
        num_stages=4,
        out_indices=(2,),
        frozen_stages=1,
@@ -31,37 +33,29 @@ model = dict(
        style='pytorch'),
    img_neck=dict(
        type='FPN',
-       in_channels=[1024],
+       in_channels=[256],
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
        num_outs=1,
        relu_before_extra_convs=True),
    pts_bbox_head=dict(
-       type='SGNHeadAll',
+       type='SGNHeadOne',
        bev_h=128,
        bev_w=128,
        bev_z=16,
        embed_dims=_dim_,
-       sdb_depth=3,
-       geo_prior=False,
-       pad_zero=True,
-       geo_guidance=False,
-       sem_guidance=True,
-       one_stage = True,
-       view_transform_dict=dict(
-           type='flosp',
-           scale_2d_list=[16]
-       ),
+       depth=_depth_,
        pts_header_dict=dict(
            type='SGNHeadOcc',
            point_cloud_range=point_cloud_range,
            spatial_shape=[256,256,32],
-           nbr_classes=1,
-           guidance=False),
+           guidance=True,
+           nbr_classes=1),
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
+       scale_2d_list=[16]
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],
@@ -139,5 +133,4 @@ log_config = dict(
        dict(type='TensorboardLoggerHook')
    ])
 
-# checkpoint_config = None
 checkpoint_config = dict(interval=1)
