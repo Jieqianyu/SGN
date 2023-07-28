@@ -61,8 +61,8 @@ class SGNHeadOED(nn.Module):
         self.sdb = SDB(channel=self.embed_dims, out_channel=self.embed_dims//2)
         
         self.occ_header = nn.Sequential(
-            SDB(channel=self.embed_dims, out_channel=self.embed_dims, depth=1),
-            nn.Conv3d(self.embed_dims, 1, kernel_size=3, padding=1)
+            SDB(channel=self.embed_dims, out_channel=self.embed_dims//2, depth=1),
+            nn.Conv3d(self.embed_dims//2, 1, kernel_size=3, padding=1)
         )
         self.sem_header = SparseHeader(self.n_classes, feature=self.embed_dims)
         self.ssc_header = Header(self.n_classes, feature=self.embed_dims//2)
