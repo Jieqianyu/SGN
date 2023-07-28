@@ -219,6 +219,7 @@ def main():
     model.init_weights()
 
     logger.info(f'Model:\n{model}')
+    logger.info('Model parameters: %.2fM' % (sum(p.numel() for p in model.parameters())/1000000.0))
     datasets = [build_dataset(cfg.data.train)]
 
     if len(cfg.workflow) == 2:
