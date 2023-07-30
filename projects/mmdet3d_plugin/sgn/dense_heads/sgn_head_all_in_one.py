@@ -181,6 +181,8 @@ class SGNHeadAll(nn.Module):
             pts_occ = pts_out['occ_logit'].squeeze(1)
             proposal =  (pts_occ > 0).float().detach().cpu().numpy()
             out['pts_occ'] = pts_occ
+            if proposal.sum() < 2:
+                proposal = np.ones_like(proposal)
         else:
             proposal =  img_metas[0]['proposal'].reshape(self.bev_h, self.bev_w, self.bev_z)
 

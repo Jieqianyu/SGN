@@ -107,6 +107,8 @@ class SGNHeadOne(nn.Module):
         proposal =  (pts_occ > 0).float().detach().cpu().numpy()
         out['pts_occ'] = pts_occ
 
+        if proposal.sum() < 2:
+            proposal = np.ones_like(proposal)
         unmasked_idx = np.asarray(np.where(proposal.reshape(-1)>0)).astype(np.int32)
         masked_idx = np.asarray(np.where(proposal.reshape(-1)==0)).astype(np.int32)
         vox_coords = self.get_voxel_indices()
