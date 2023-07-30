@@ -47,6 +47,7 @@ class SemanticKittiDatasetStage2(Dataset):
         self.label_root = os.path.join(preprocess_root, labels_tag)
         self.query_tag = query_tag
         self.nsweep=str(nsweep)
+        self.depth_query = "msnet3d"
         self.depthmodel = depthmodel
         self.eval_range = eval_range
         splits = {
@@ -180,7 +181,7 @@ class SemanticKittiDatasetStage2(Dataset):
             proj_matrix = P @ T_velo_2_cam
 
             glob_path = os.path.join(
-                self.data_root, "dataset", "sequences_" + self.depthmodel + "_sweep"+ self.nsweep, sequence, "queries", "*." + self.query_tag
+                self.data_root, "dataset", "sequences_" + self.depth_query + "_sweep"+ self.nsweep, sequence, "queries", "*." + self.query_tag
             )
 
             for proposal_path in glob.glob(glob_path):
@@ -374,7 +375,7 @@ class SemanticKittiDatasetStage2(Dataset):
         lidar2img_rt = (viewpad @ lidar2cam_rt)
 
         pts_filename = os.path.join(
-                self.data_root, "dataset", "sequences_msnet3d_lidar/sequences", sequence, frame_id + ".bin"
+                self.data_root, "dataset", f"sequences_{self.depthmodel}_lidar/sequences", sequence, frame_id + ".bin"
             )
         pts = np.fromfile(pts_filename, dtype=np.float32)
         pts = pts.reshape((-1, 4))
@@ -418,7 +419,7 @@ class SemanticKittiDatasetStage2(Dataset):
             lidar2img_rt = (viewpad @ lidar2cam_rt)
 
             pts_filename = os.path.join(
-                self.data_root, "dataset", "sequences_msnet3d_lidar/sequences", sequence, target_id + ".bin"
+                self.data_root, "dataset", f"sequences_{self.depthmodel}_lidar/sequences", sequence, target_id + ".bin"
             )
             pts = np.fromfile(pts_filename, dtype=np.float32)
             pts = pts.reshape((-1, 4))
@@ -448,7 +449,7 @@ class SemanticKittiDatasetStage2(Dataset):
                     target_id = frame_id
                 else:
                     target_id = str(id + i).zfill(6)
-                depth_path = os.path.join(self.data_root, "dataset", "sequences_msnet3d_depth", 'sequences', sequence, target_id + ".npy")
+                depth_path = os.path.join(self.data_root, "dataset", f"sequences_{self.depthmodel}_depth", 'sequences', sequence, target_id + ".npy")
                 depth = np.load(depth_path).astype("float32")
                 depths.append(depth[: self.img_H, : self.img_W])
         else:
