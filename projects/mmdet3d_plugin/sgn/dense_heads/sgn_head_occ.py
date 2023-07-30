@@ -358,7 +358,7 @@ class Voxelization(nn.Module):
         fiter_batch_idx = batch_idx[mask]
         if filter_pc.shape[0] < 10:
             filter_pc = torch.ones((10, 3), dtype=pc.dtype).to(pc.device)
-            filter_pc = torch.ones * torch.rand_like(filter_pc)
+            filter_pc = filter_pc * torch.rand_like(filter_pc)
             fiter_batch_idx = torch.zeros(10, dtype=torch.long).to(pc.device)
         return filter_pc, fiter_batch_idx
 
