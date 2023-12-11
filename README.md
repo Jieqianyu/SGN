@@ -5,7 +5,7 @@
 
 > **Camera-based Semantic Scene Completion with Sparse Guidance Network**. 
 
-> Jianbiao Mei, Yu Yang, Mengmeng Wang, Junyu Zhu, Xiangrui Zhao Jongwon Ra, Laijian Li, Yong Liu*
+> Jianbiao Mei, Yu Yang, Mengmeng Wang, Junyu Zhu, Xiangrui Zhao, Jongwon Ra, Laijian Li, Yong Liu*
 
 >  [[Arxiv]]()
 
