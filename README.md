@@ -45,9 +45,9 @@ Coming soon...
 
 | Backbone | Dataset| Method | IoU| mIoU | Config | Download |
 | :---: | :---: | :---: | :---: | :---:| :---: | :---: |
-| [R50]() | Sem.KITTI test| SGN-T |45.42| 15.76|[config](./projects/configs/sgn/sgn-T-one-stage-guidance) |[model]() 
-| [R50]() | Sem.KITTI test| SGN-L | 43.71| 14.39|[config](./projects/configs/sgn/sgn-L-one-stage-guidance) |[model]()|
-| [R50]() | Sem.KITTI test| SGN-S | 41.88| 14.01|[config](./projects/configs/sgn/sgn-S-one-stage-guidance) |[model]()|
+| [R50]() | Sem.KITTI test| SGN-T |45.42| 15.76|[config](./projects/configs/sgn/sgn-T-one-stage-guidance.py) |[model]() 
+| [R50]() | Sem.KITTI test| SGN-L | 43.71| 14.39|[config](./projects/configs/sgn/sgn-L-one-stage-guidance.py) |[model]()|
+| [R50]() | Sem.KITTI test| SGN-S | 41.88| 14.01|[config](./projects/configs/sgn/sgn-S-one-stage-guidance.py) |[model]()|
 
 Note that we used the ones that performed best on the validation set during training to test on the web server. You can acquire better results on test sets when incorporating validation images for training.
  
