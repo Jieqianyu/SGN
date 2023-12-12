@@ -7,11 +7,11 @@
 
 > Jianbiao Mei, Yu Yang, Mengmeng Wang, Junyu Zhu, Xiangrui Zhao, Jongwon Ra, Laijian Li, Yong Liu*
 
->  [[Arxiv]](https://arxiv.org/abs/2312.05752)
+>  [[Arxiv]](https://arxiv.org/abs/2312.05752.pdf)
 
 
 ## News
-- [2023/12]: Our paper is on [arxiv](https://arxiv.org/abs/2312.05752).
+- [2023/12]: Our paper is on [arxiv](https://arxiv.org/abs/2312.05752.pdf).
 - [2023/08]: SGN achieve the SOTA on Camera-based [SemanticKITTI 3D SSC (Semantic Scene Completion) Task](http://www.semantic-kitti.org/tasks.html#ssc) with **15.76% mIoU** and **45.52% IoU**.
 </br>
 
