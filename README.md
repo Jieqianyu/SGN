@@ -7,11 +7,11 @@
 
 > Jianbiao Mei, Yu Yang, Mengmeng Wang, Junyu Zhu, Xiangrui Zhao, Jongwon Ra, Laijian Li, Yong Liu*
 
->  [[Arxiv]]()
+>  [[Arxiv]](https://arxiv.org/abs/2312.05752)
 
 
 ## News
-- [2023/12]: Our paper is on [arxiv]().
+- [2023/12]: Our paper is on [arxiv](https://arxiv.org/abs/2312.05752).
 - [2023/08]: SGN achieve the SOTA on Camera-based [SemanticKITTI 3D SSC (Semantic Scene Completion) Task](http://www.semantic-kitti.org/tasks.html#ssc) with **15.76% mIoU** and **45.52% IoU**.
 </br>
 
@@ -61,9 +61,11 @@ Note that we used the ones that performed best on the validation set during trai
 If this work is helpful for your research, please cite the following BibTeX entry.
 
 ```
-@InProceedings{mei2023camera,
-      title={Camera-based 3D Semantic Scene Completion with Sparase Guidance Network}, 
-      author={Mei, Jianbiao and Yang, Yu and Wang, Mengmeng and Zhu, Junyu and Zhao, Xiangrui and Ra Jongwon and Li, Laijian and Liu, Yong}
+@article{mei2023camera,
+      title={Camera-based 3D Semantic Scene Completion with Sparase Guidance Network},
+      author={Mei, Jianbiao and Yang, Yu and Wang, Mengmeng and Zhu, Junyu and Zhao, Xiangrui and Ra Jongwon and Li, Laijian and Liu, Yong},
+      journal={arXiv preprint arXiv:2312.05752},
+      year={2023}
 }
 ```
 
