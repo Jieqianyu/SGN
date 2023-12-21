@@ -16,8 +16,6 @@ voxel_size = [0.2, 0.2, 0.2]
 _sem_scal_loss_ = True
 _geo_scal_loss_ = True
 _depthmodel_= 'msnet3d'
-_nsweep_ = 10
-_query_tag_ = 'query_iou5348_pre7043_rec6897'
 
 model = dict(
    type='SGN',
@@ -64,7 +62,7 @@ model = dict(
        out_size_factor=4)))
 
 
-dataset_type = 'SemanticKittiDatasetStage2'
+dataset_type = 'SemanticKittiDataset'
 data_root = './kitti/'
 file_client_args = dict(backend='disk')
 
@@ -79,10 +77,8 @@ data = dict(
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
-       nsweep=_nsweep_,
        temporal = _temporal_,
-       labels_tag = _labels_tag_,
-       query_tag = _query_tag_),
+       labels_tag = _labels_tag_),
    val=dict(
        type=dataset_type,
        split = "val",
@@ -91,10 +87,8 @@ data = dict(
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
-       nsweep=_nsweep_,
        temporal = _temporal_,
-       labels_tag = _labels_tag_,
-       query_tag = _query_tag_),
+       labels_tag = _labels_tag_),
    test=dict(
        type=dataset_type,
        split = "val",
@@ -103,10 +97,8 @@ data = dict(
        preprocess_root=data_root + 'dataset',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
-       nsweep=_nsweep_,
        temporal = _temporal_,
-       labels_tag = _labels_tag_,
-       query_tag = _query_tag_),
+       labels_tag = _labels_tag_),
    shuffler_sampler=dict(type='DistributedGroupSampler'),
    nonshuffler_sampler=dict(type='DistributedSampler')
 )

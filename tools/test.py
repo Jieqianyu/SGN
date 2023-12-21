@@ -1,11 +1,10 @@
 # -------------------------------------------------------------------
 # Copyright (c) OpenMMLab. All rights reserved.
 # -------------------------------------------------------------------
-#  Modified by Yiming Li
+#  Modified by Jianbiao Mei
 # -------------------------------------------------------------------
 
 import argparse
-import mmcv
 import os
 import torch
 import warnings
@@ -15,12 +14,11 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
                          wrap_fp16_model)
 
-from mmdet3d.apis import single_gpu_test
 from mmdet3d.datasets import build_dataset
 from projects.mmdet3d_plugin.datasets.builder import build_dataloader
 from mmdet3d.models import build_model
 from mmdet.apis import set_random_seed
-from projects.mmdet3d_plugin.sgn.apis.test import custom_multi_gpu_test
+from projects.mmdet3d_plugin.sgn.apis.test import custom_multi_gpu_test, custom_single_gpu_test
 from mmdet.datasets import replace_ImageToTensor
 import time
 import os.path as osp
@@ -225,7 +223,7 @@ def main():
     if not distributed:
         # assert False
         model = MMDataParallel(model, device_ids=[0])
-        outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
+        outputs = custom_single_gpu_test(model, data_loader, args.show, args.show_dir)
     else:
         model = MMDistributedDataParallel(
             model.cuda(),

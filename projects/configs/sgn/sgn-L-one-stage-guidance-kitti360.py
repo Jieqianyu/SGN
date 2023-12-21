@@ -5,7 +5,8 @@ _base_ = [
 plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
-_dim_ = 128
+_dim_ = 64
+_depth_ = 1
 
 _labels_tag_ = 'labels'
 _temporal_ = [-12, -9, -6, -3]
@@ -18,10 +19,10 @@ _depthmodel_= 'msnet3d'
 
 model = dict(
    type='SGN',
-   pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
+   pretrained=dict(img='ckpts/resnet18-5c106cde.pth'),
    img_backbone=dict(
        type='ResNet',
-       depth=50,
+       depth=18,
        num_stages=4,
        out_indices=(2,),
        frozen_stages=1,
@@ -30,7 +31,7 @@ model = dict(
        style='pytorch'),
    img_neck=dict(
        type='FPN',
-       in_channels=[1024],
+       in_channels=[256],
        out_channels=_dim_,
        start_level=0,
        add_extra_convs='on_output',
@@ -42,6 +43,7 @@ model = dict(
        bev_w=128,
        bev_z=16,
        embed_dims=_dim_,
+       depth=_depth_,
        pts_header_dict=dict(
            type='SGNHeadOcc',
            point_cloud_range=point_cloud_range,
@@ -51,7 +53,8 @@ model = dict(
        CE_ssc_loss=True,
        geo_scal_loss=_geo_scal_loss_,
        sem_scal_loss=_sem_scal_loss_,
-       scale_2d_list=[16]
+       scale_2d_list=[16],
+       dataset='kitti360'
        ),
    train_cfg=dict(pts=dict(
        grid_size=[512, 512, 1],
@@ -60,8 +63,8 @@ model = dict(
        out_size_factor=4)))
 
 
-dataset_type = 'SemanticKittiDataset'
-data_root = './kitti/'
+dataset_type = 'Kitti360Dataset'
+data_root = './kitti360/'
 file_client_args = dict(backend='disk')
 
 data = dict(
@@ -72,7 +75,7 @@ data = dict(
        split = "train",
        test_mode=False,
        data_root=data_root,
-       preprocess_root=data_root + 'dataset',
+       preprocess_root=data_root + 'preprocess',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
        temporal = _temporal_,
@@ -82,17 +85,17 @@ data = dict(
        split = "val",
        test_mode=True,
        data_root=data_root,
-       preprocess_root=data_root + 'dataset',
+       preprocess_root=data_root + 'preprocess',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
        temporal = _temporal_,
        labels_tag = _labels_tag_),
    test=dict(
        type=dataset_type,
-       split = "val",
+       split = "test",
        test_mode=True,
        data_root=data_root,
-       preprocess_root=data_root + 'dataset',
+       preprocess_root=data_root + 'preprocess',
        eval_range = 51.2,
        depthmodel=_depthmodel_,
        temporal = _temporal_,
@@ -123,5 +126,4 @@ log_config = dict(
        dict(type='TensorboardLoggerHook')
    ])
 
-# checkpoint_config = None
 checkpoint_config = dict(interval=1)

@@ -7,17 +7,10 @@ exeFunc(){
     num_seq=$2
     CUDA_VISIBLE_DEVICES=0 python prediction.py --datapath ../kitti/dataset/sequences/$num_seq \
     --testlist ./filenames/$num_seq.txt --num_seq $num_seq --loadckpt ./MSNet3D_SF_DS_KITTI2015.ckpt --dataset kitti \
-    --model MSNet3D --savepath "./depth" --baseline $baseline
+    --model MSNet3D --savepath "../kitti/dataset/sequences_msnet3d_depth" --baseline $baseline
     cd ..
 }
 
-# Change data_path to your own specified path
-# And make sure there is enough space under data_path to store the generated data
-# data_path=/mnt/NAS/data/yiming/segformer3d_data
-# data_path=/public/datasets/SemanticKITTI/dataset
-
-# mkdir -p $data_path/sequences_msnet3d_depth
-# ln -s $data_path/sequences_msnet3d_depth ./mobilestereonet/depth
 for i in {00..02}
 do
     exeFunc 388.1823 $i     

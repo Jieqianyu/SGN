@@ -11,6 +11,7 @@
 
 
 ## News
+- [2023/12]: We release the evaluation results and training code for SSCBench-SSC-KITTI360.
 - [2023/12]: Our paper is on [arxiv](https://arxiv.org/pdf/2312.05752.pdf).
 - [2023/08]: SGN achieve the SOTA on Camera-based [SemanticKITTI 3D SSC (Semantic Scene Completion) Task](http://www.semantic-kitti.org/tasks.html#ssc) with **15.76% mIoU** and **45.52% IoU**.
 </br>
@@ -27,8 +28,14 @@ Semantic scene completion (SSC) aims to predict the semantic occupancy of each v
 | ***Figure 1. Overall framework of SGN**. The image encoder extracts 2D features to provide the foundation for 3D features lifted by the view transformation. Then auxiliary occupancy head is applied to provide geometry guidance. Before sparse semantic guidance, depth-based occupancy prediction is utilized for voxel proposals of indexing seed features. Afterward, the voxel aggregation layer forms the informative voxel features processed by the multi-scale semantic diffusion for the final semantic occupancy prediction. KT denotes the knowledge transfer layer for geometry prior.* |
 
 ## Getting Started
-- [Installation and Dataset](https://github.com/NVlabs/VoxFormer). Please refer to Voxformer for the details.
-- Run and Eval
+### Installation
+Please refer to [Voxformer](https://github.com/NVlabs/VoxFormer) to create base environment. Some extra packages are needed to be installed:  
+- spconv-cu111==2.1.25  
+- torch-scatter==2.0.8  
+- tochmetrics>=0.9.0  
+### Prepare Dataset
+Please refer to the [README](preprocess/README.md) in the preprocess folder for details.
+### Run and Eval
   
 Train SGN with 4 GPUs 
 ```
@@ -41,29 +48,30 @@ Eval SGN with 4 GPUs
 ```
 
 ## Model Zoo
-Coming soon...
+| Backbone | Dataset| Method | IoU| mIoU | Params (M) | Config | Download |
+| :---: | :---: | :---: | :---: | :---:| :---: | :---: | :---: |
+| R50 | Sem.KITTI val/test| SGN-T |46.21/45.42| 15.32/15.76|28.2 |[config](./projects/configs/sgn/sgn-T-one-stage-guidance.py) |[model](https://drive.google.com/file/d/1cDKX6SpyoAHr-cfmjTRDsNF-3_JgtH3p/view?usp=drive_link) 
+| R50 | KITTI360 val/test| SGN-T |47.50/47.06 | 19.07/18.25| 28.2 | [config](./projects/configs/sgn/sgn-T-one-stage-guidance-kitti360.py) |[model](https://drive.google.com/file/d/1pfS_9FPsXuUbT1m2tMqSowFN2iEA6KdB/view?usp=drive_link) 
+| R18 | Sem.KITTI val/test| SGN-L | 45.45/43.71| 14.80/14.39| 12.5 |[config](./projects/configs/sgn/sgn-L-one-stage-guidance.py) |[model](https://drive.google.com/file/d/1qcjU-vQEju1ycL6NSmq1o53BuI8iYMaK/view?usp=drive_link)|
+| R18 | KITTI360 val/test| SGN-L | 46.67/46.64 | 17.11/16.95 | 12.5 |[config](./projects/configs/sgn/sgn-L-one-stage-guidance-kitti360.py) |[model](https://drive.google.com/file/d/1hdR4gMDK4-NyulFDWUNPcLhEImNie8nI/view?usp=drive_link)|
+| R50 | Sem.KITTI val/test| SGN-S | 43.60/41.88| 14.55/14.01| 28.2 |[config](./projects/configs/sgn/sgn-S-one-stage-guidance.py) |[model](https://drive.google.com/file/d/1nSh3b69zymabIKmc0L8gGNaEY7RA95T2/view?usp=drive_link)|
+| R50 | KITTI360 val/test| SGN-S |46.13/46.22 |18.29/17.71 | 28.2 | [config](./projects/configs/sgn/sgn-S-one-stage-guidance-kitti360.py) |[model](https://drive.google.com/file/d/1WrvxWCq3EY2zRgLoW6JpLNawyiUr2SdD/view?usp=drive_link)|
 
-| Backbone | Dataset| Method | IoU| mIoU | Config | Download |
-| :---: | :---: | :---: | :---: | :---:| :---: | :---: |
-| R50 | Sem.KITTI test| SGN-T |45.42| 15.76|[config](./projects/configs/sgn/sgn-T-one-stage-guidance.py) |[model]() 
-| R18 | Sem.KITTI test| SGN-L | 43.71| 14.39|[config](./projects/configs/sgn/sgn-L-one-stage-guidance.py) |[model]()|
-| R50 | Sem.KITTI test| SGN-S | 41.88| 14.01|[config](./projects/configs/sgn/sgn-S-one-stage-guidance.py) |[model]()|
-
-Note that we used the ones that performed best on the validation set during training to test on the web server. You can acquire better results on test sets when incorporating validation images for training.
+Note that we used the checkpoints that performed best on the validation set during training to evaluate SGN on the test sets for both SemanticKITTI and SSCBench-KITTI-360 datasets.
  
 ## TODO
 
 - [x] SemanticKITTI
-- [ ] Model Zoo
-- [ ] SSCBench-KITTI-360
+- [x] SSCBench-KITTI-360
+- [ ] Data augmentation
 
 ## Bibtex
 If this work is helpful for your research, please cite the following BibTeX entry.
 
 ```
 @article{mei2023camera,
-      title={Camera-based 3D Semantic Scene Completion with Sparase Guidance Network},
-      author={Mei, Jianbiao and Yang, Yu and Wang, Mengmeng and Zhu, Junyu and Zhao, Xiangrui and Ra Jongwon and Li, Laijian and Liu, Yong},
+      title={Camera-based 3D Semantic Scene Completion with Sparse Guidance Network},
+      author={Mei, Jianbiao and Yang, Yu and Wang, Mengmeng and Zhu, Junyu and Zhao, Xiangrui and Ra, Jongwon and Li, Laijian and Liu, Yong},
       journal={arXiv preprint arXiv:2312.05752},
       year={2023}
 }

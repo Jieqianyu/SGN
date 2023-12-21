@@ -57,8 +57,6 @@ model.load_state_dict(state_dict['model'])
 def test(args):
     print("Generating the disparity maps...")
 
-    os.makedirs('./predictions', exist_ok=True)
-
     for batch_idx, sample in enumerate(TestImgLoader):
 
         disp_est_tn = test_sample(sample)

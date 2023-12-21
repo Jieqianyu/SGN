@@ -20,3 +20,5 @@ result
 kitti
 depth
 lidar
+kitti360
+output

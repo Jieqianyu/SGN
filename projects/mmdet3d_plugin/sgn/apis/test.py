@@ -11,7 +11,6 @@
 # ---------------------------------------------
 
 import os.path as osp
-import pickle
 import shutil
 import tempfile
 import time
@@ -19,36 +18,37 @@ import time
 import mmcv
 import torch
 import torch.distributed as dist
-from mmcv.image import tensor2imgs
 from mmcv.runner import get_dist_info
 
-from mmdet.core import encode_mask_results
+from projects.mmdet3d_plugin.sgn.utils.ssc_metric import SSCMetrics
 
+def custom_single_gpu_test(model, data_loader, show=False, out_dir=None):
+    model.eval()
+    
+    dataset = data_loader.dataset
+    prog_bar = mmcv.ProgressBar(len(dataset))
+    
+    # evaluate ssc
+    ssc_metric = SSCMetrics(len(dataset.class_names)).cuda()
+    
+    for i, data in enumerate(data_loader):
+        with torch.no_grad():
+            result = model(return_loss=False, rescale=True, **data)
+    
+        output_voxels = torch.argmax(result['output_voxels'], dim=1)
+        target_voxels = result['target_voxels'].clone()
+        ssc_metric.update(y_pred=output_voxels,  y_true=target_voxels)
+        
+        batch_size = output_voxels.shape[0]
+        for _ in range(batch_size):
+            prog_bar.update()
+    
+    res = {
+        'ssc_scores': ssc_metric.compute(),
+    }
+    
+    return res
 
-import mmcv
-import numpy as np
-import pycocotools.mask as mask_util
-
-def custom_encode_mask_results(mask_results):
-    """Encode bitmap mask to RLE code. Semantic Masks only
-    Args:
-        mask_results (list | tuple[list]): bitmap mask results.
-            In mask scoring rcnn, mask_results is a tuple of (segm_results,
-            segm_cls_score).
-    Returns:
-        list | tuple: RLE encoded mask.
-    """
-
-    cls_segms = mask_results
-    num_classes = len(cls_segms)
-    encoded_mask_results = []
-    for i in range(len(cls_segms)):
-        encoded_mask_results.append(
-            mask_util.encode(
-                np.array(
-                    cls_segms[i][:, :, np.newaxis], order='F',
-                        dtype='uint8'))[0])  # encoded with RLE
-    return [encoded_mask_results]
 
 def custom_multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     """Test model with multiple gpus.
@@ -68,63 +68,41 @@ def custom_multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     """
     
     model.eval()
-    results = []
-
     dataset = data_loader.dataset
     rank, world_size = get_dist_info()
     if rank == 0:
         prog_bar = mmcv.ProgressBar(len(dataset))
+        
+    ssc_results = []
+    # evaluate ssc
+    ssc_metric = SSCMetrics(len(dataset.class_names)).cuda()
+    
     time.sleep(2)  # This line can prevent deadlock problem in some cases.
-    # have_mask = False
+    
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
-
-            # print(result)
-            # encode mask results
-            if isinstance(result, dict):
-                # if 'y_pred' in result.keys():
-                # y_pred = result['y_pred']
-                batch_size = len(result['y_pred'])
-                # y_preds.extend(y_pred)
-
-                # y_true = result['y_true']
-                # batch_size = len(result['y_true'])
-                results.append(result)
-                # if 'mask_results' in result.keys() and result['mask_results'] is not None:
-                #     mask_result = custom_encode_mask_results(result['mask_results'])
-                #     mask_results.extend(mask_result)
-                #     have_mask = True
-            # else:
-            #     batch_size = len(result)
-            #     bbox_results.extend(result)
-
-            #if isinstance(result[0], tuple):
-            #    assert False, 'this code is for instance segmentation, which our code will not utilize.'
-            #    result = [(bbox_results, encode_mask_results(mask_results))
-            #              for bbox_results, mask_results in result]
+            
+        output_voxels = torch.argmax(result['output_voxels'], dim=1)
+            
+        if result['target_voxels'] is not None:
+            target_voxels = result['target_voxels'].clone()
+            ssc_results_i = ssc_metric.compute_single(
+                y_pred=output_voxels, y_true=target_voxels)
+            ssc_results.append(ssc_results_i)
+            
+        batch_size = output_voxels.shape[0]
         if rank == 0:
             for _ in range(batch_size * world_size):
                 prog_bar.update()
-
-    # collect results from all ranks
-    if gpu_collect:
-        results = collect_results_gpu(results, len(dataset))
-        # if have_mask:
-        #     mask_results = collect_results_gpu(mask_results, len(dataset))
-        # else:
-        #     mask_results = None
-    else:
-        results = collect_results_cpu(results, len(dataset), tmpdir)
-        # tmpdir = tmpdir+'_mask' if tmpdir is not None else None
-        # if have_mask:
-        #     mask_results = collect_results_cpu(mask_results, len(dataset), tmpdir)
-        # else:
-        #     mask_results = None
-
-    # if mask_results is None:
-    return results
-    # return {'bbox_results': bbox_results, 'mask_results': mask_results}
+    
+    # wait until all predictions are generated
+    dist.barrier()
+    
+    res = {}
+    res['ssc_results'] = collect_results_cpu(ssc_results, len(dataset), tmpdir)
+    
+    return res
 
 
 def collect_results_cpu(result_part, size, tmpdir=None):
@@ -172,7 +150,3 @@ def collect_results_cpu(result_part, size, tmpdir=None):
         # remove tmp dir
         shutil.rmtree(tmpdir)
         return ordered_results
-
-
-def collect_results_gpu(result_part, size):
-    collect_results_cpu(result_part, size)

@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                        
 class Header(nn.Module):
     def __init__(
         self,

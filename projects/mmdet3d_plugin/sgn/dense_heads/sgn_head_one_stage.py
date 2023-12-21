@@ -1,13 +1,7 @@
-# Copyright (c) 2022-2023, NVIDIA Corporation & Affiliates. All rights reserved.
-#
-# This work is made available under the Nvidia Source Code License-NC.
-# To view a copy of this license, visit
-# https://github.com/NVlabs/VoxFormer/blob/main/LICENSE
-
 # ---------------------------------------------
 # Copyright (c) OpenMMLab. All rights reserved.
 # ---------------------------------------------
-#  Modified by Zhiqi Li
+#  Modified by Jianbiao Mei
 # ---------------------------------------------
 
 import os
@@ -15,14 +9,13 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import spconv.pytorch as spconv
 from mmdet.models import HEADS, builder
 from projects.mmdet3d_plugin.sgn.utils.header import Header, SparseHeader
 from projects.mmdet3d_plugin.sgn.modules.sgb import SGB
 from projects.mmdet3d_plugin.sgn.modules.sdb import SDB
 from projects.mmdet3d_plugin.sgn.modules.flosp import FLoSP
 from projects.mmdet3d_plugin.sgn.utils.lovasz_losses import lovasz_softmax
-from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss, BCE_ssc_loss
+from projects.mmdet3d_plugin.sgn.utils.ssc_loss import sem_scal_loss, geo_scal_loss, CE_ssc_loss
 
 @HEADS.register_module()
 class SGNHeadOne(nn.Module):
@@ -48,8 +41,18 @@ class SGNHeadOne(nn.Module):
         self.bev_z = bev_z
         self.real_w = 51.2
         self.real_h = 51.2
-        self.n_classes = 20
         self.embed_dims = embed_dims
+
+        if kwargs.get('dataset', 'semantickitti') == 'semantickitti':
+            self.class_names =  [ "empty", "car", "bicycle", "motorcycle", "truck", "other-vehicle", "person", "bicyclist", "motorcyclist", "road", 
+                                "parking", "sidewalk", "other-ground", "building", "fence", "vegetation", "trunk", "terrain", "pole", "traffic-sign",]
+            self.class_weights = torch.from_numpy(np.array([0.446, 0.603, 0.852, 0.856, 0.747, 0.734, 0.801, 0.796, 0.818, 0.557, 0.653, 0.568, 0.683, 0.560, 0.603, 0.530, 0.688, 0.574, 0.716, 0.786]))
+        elif kwargs.get('dataset', 'semantickitti') == 'kitti360':
+            self.class_names =  ['empty', 'car', 'bicycle', 'motorcycle', 'truck', 'other-vehicle', 'person', 'road',
+         'parking', 'sidewalk', 'other-ground', 'building', 'fence', 'vegetation', 'terrain',
+         'pole', 'traffic-sign', 'other-structure', 'other-object']
+            self.class_weights = torch.from_numpy(np.array([0.464, 0.595, 0.865, 0.871, 0.717, 0.657, 0.852, 0.541, 0.602, 0.567, 0.607, 0.540, 0.636, 0.513, 0.564, 0.701, 0.774, 0.580, 0.690]))
+        self.n_classes = len(self.class_names)
 
         self.flosp = FLoSP(scale_2d_list)
         self.bottleneck = nn.Conv3d(self.embed_dims, self.embed_dims, kernel_size=3, padding=1)
@@ -73,10 +76,6 @@ class SGNHeadOne(nn.Module):
 
         self.pts_header = builder.build_head(pts_header_dict)
 
-        self.class_names =  [ "empty", "car", "bicycle", "motorcycle", "truck", "other-vehicle", "person", "bicyclist", "motorcyclist", "road", 
-                            "parking", "sidewalk", "other-ground", "building", "fence", "vegetation", "trunk", "terrain", "pole", "traffic-sign",]
-        self.class_weights = torch.from_numpy(np.array([0.446, 0.603, 0.852, 0.856, 0.747, 0.734, 0.801, 0.796, 0.818, 0.557, 
-                                                        0.653, 0.568, 0.683, 0.560, 0.603, 0.530, 0.688, 0.574, 0.716, 0.786]))
         self.CE_ssc_loss = CE_ssc_loss
         self.sem_scal_loss = sem_scal_loss
         self.geo_scal_loss = geo_scal_loss
@@ -187,15 +186,13 @@ class SGNHeadOne(nn.Module):
             return loss_dict
 
         elif step_type== "val" or "test":
-            y_true = target.cpu().numpy()
-            y_pred = ssc_pred.detach().cpu().numpy()
-            y_pred = np.argmax(y_pred, axis=1)
-
             result = dict()
-            result['y_pred'] = y_pred
-            result['y_true'] = y_true
+            result['output_voxels'] = ssc_pred
+            result['target_voxels'] = target
 
             if self.save_flag:
+                y_pred = ssc_pred.detach().cpu().numpy()
+                y_pred = np.argmax(y_pred, axis=1)
                 self.save_pred(img_metas, y_pred)
 
             return result
@@ -242,6 +239,7 @@ class SGNHeadOne(nn.Module):
         5: 20   # "other-vehicle"      # 6: 30   # "person"     # 7: 31   # "bicyclist"     # 8: 32   # "motorcyclist"   # 9: 40   # "road"   
         10: 44  # "parking"            # 11: 48  # "sidewalk"   # 12: 49  # "other-ground"  # 13: 50  # "building"       # 14: 51  # "fence"          
         15: 70  # "vegetation"         # 16: 71  # "trunk"      # 17: 72  # "terrain"       # 18: 80  # "pole"           # 19: 81  # "traffic-sign"
+        Note: only for semantickitti
         """
 
         y_pred[y_pred==10] = 44
