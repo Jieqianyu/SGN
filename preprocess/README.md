@@ -151,30 +151,30 @@ The data is organized in the following format:
         │        │   │   │	├── 000000.png
         │        │   │   │	├── 000001.png
         │        │   │   │	├── ...
-		│        │   ├── image_01/
+        │        │   ├── image_01/
         │        │   │   ├── data_rect/
         │        │   │   │	├── 000000.png
         │        │   │   │	├── 000001.png
         │        │   │   │	├── ...
-		│        │   ├── voxels/
-		│        │   └── poses.txt
+        │        │   ├── voxels/
+        │        │   └── poses.txt
         │        ├── 2013_05_28_drive_0002_sync/
         │        ├── 2013_05_28_drive_0003_sync/
         │        .
         │        └── 2013_05_28_drive_0010_sync/
         └── preprocess/
                  ├── labels/ 
-		         │   ├── 2013_05_28_drive_0000_sync/
-		         │   │   ├── 000000_1_1.npy
-		         │   │   ├── 000000_1_2.npy
-		         │   │   ├── 000000_1_8.npy
-		         │   │   ├── ...
-		         │   ├── 2013_05_28_drive_0002_sync
-		         │   ├── 2013_05_28_drive_0003_sync/
-		         │   .
-		 		 │	 └── 2013_05_28_drive_0010_sync/
-		         ├── labels_half/ 
-		         └── unified/ 
+                 │   ├── 2013_05_28_drive_0000_sync/
+                 │   │   ├── 000000_1_1.npy
+		 │   │   ├── 000000_1_2.npy
+		 │   │   ├── 000000_1_8.npy
+		 │   │   ├── ...
+		 │   ├── 2013_05_28_drive_0002_sync
+		 │   ├── 2013_05_28_drive_0003_sync/
+		 │   .
+		 │   └── 2013_05_28_drive_0010_sync/
+		 ├── labels_half/ 
+		 └── unified/ 
 
 ```
 
@@ -205,36 +205,36 @@ Finally we have the following data:
         │        │   │   │	├── 000000.png
         │        │   │   │	├── 000001.png
         │        │   │   │	├── ...
-		│        │   ├── image_01/
+        │        │   ├── image_01/
         │        │   │   ├── data_rect/
         │        │   │   │	├── 000000.png
         │        │   │   │	├── 000001.png
         │        │   │   │	├── ...
-		│        │   └── voxels/
+        │        │   └── voxels/
         │        ├── 2013_05_28_drive_0002_sync/
         │        ├── 2013_05_28_drive_0003_sync/
         │        .
         │        └── 2013_05_28_drive_0010_sync/
         └── preprocess/
-        │        ├── labels/ 
-		│        │   ├── 2013_05_28_drive_0000_sync/
-		│        │   │   ├── 000000_1_1.npy
-		│        │   │   ├── 000000_1_2.npy
-		│        │   │   ├── 000000_1_8.npy
-		│        │   │   ├── ...
-		│        │   ├── 2013_05_28_drive_0002_sync/
-		│        │   ├── 2013_05_28_drive_0003_sync/
-		│        │   .
-		│		 │	 └── 2013_05_28_drive_0010_sync/ 
-		│        ├── labels_half/ 
-		│        └── unified/ 
-		└── msnet3d_pseudo_lidar/
-		         ├── 2013_05_28_drive_0000_sync/
-		         │   ├── 000000.bin
-		         │   ├── 000001.bin
-		         │   ├── ...
-		         ├── 2013_05_28_drive_0002_sync/
-		         ├── 2013_05_28_drive_0003_sync/
-		         .
-				 └── 2013_05_28_drive_0010_sync/
+	│        ├── labels/ 
+	│        │   ├── 2013_05_28_drive_0000_sync/
+	│        │   │   ├── 000000_1_1.npy
+	│        │   │   ├── 000000_1_2.npy
+	│        │   │   ├── 000000_1_8.npy
+	│        │   │   ├── ...
+	│        │   ├── 2013_05_28_drive_0002_sync/
+	│        │   ├── 2013_05_28_drive_0003_sync/
+	│        │   .
+	│	 │   └── 2013_05_28_drive_0010_sync/ 
+	│        ├── labels_half/ 
+	│        └── unified/ 
+	└── msnet3d_pseudo_lidar/
+		 ├── 2013_05_28_drive_0000_sync/
+		 │   ├── 000000.bin
+		 │   ├── 000001.bin
+		 │   ├── ...
+		 ├── 2013_05_28_drive_0002_sync/
+		 ├── 2013_05_28_drive_0003_sync/
+		 .
+		 └── 2013_05_28_drive_0010_sync/
 ```
