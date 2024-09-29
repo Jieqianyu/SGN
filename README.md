@@ -24,7 +24,6 @@ Semantic scene completion (SSC) aims to predict the semantic occupancy of each v
 
 | ![SGN.jpg](./teaser/arch.png) | 
 |:--:| 
-| ***Figure 1. Overall framework of SGN**. The image encoder extracts 2D features to provide the foundation for 3D features lifted by the view transformation. Then auxiliary occupancy head is applied to provide geometry guidance. Before sparse semantic guidance, depth-based occupancy prediction is utilized for voxel proposals of indexing seed features. Afterward, the voxel aggregation layer forms the informative voxel features processed by the multi-scale semantic diffusion for the final semantic occupancy prediction. KT denotes the knowledge transfer layer for geometry prior.* |
 
 ## Getting Started
 ### Installation
